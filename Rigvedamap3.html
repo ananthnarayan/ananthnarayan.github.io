@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rigveda Sukta Navigator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+    #header { padding: 20px; background-color: #f0f0f0; }
+    #aboutBox { max-width: 800px; margin: 0 auto 10px auto; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; text-align: left; }
+    #controls { margin: 10px auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    select, #description, #mantraSelect { margin: 10px 0; width: 300px; }
+    .node { cursor: pointer; stroke: #fff; stroke-width: 1.5px; }
+    .link { stroke: #999; stroke-opacity: 0.6; }
+    #breadcrumb { margin-bottom: 10px; font-size: 14px; color: #444; }
+    #breadcrumb span { cursor: pointer; color: #0077cc; }
+  </style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <div id="header">
+    <div id="aboutBox">
+      <h2>About This Page</h2>
+      <p>This page visualizes the relationships between mantras in the Rigveda. Select a Mandala, Sukta, and Mantra to explore its connections to others. Click on any node to navigate further.</p>
+    </div>
+    <div id="controls">
+      <div id="breadcrumb"></div>
+      <label for="mandalaSelect">Select Mandala:</label>
+      <select id="mandalaSelect"></select>
+      <label for="suktaSelect">Select Sukta:</label>
+      <select id="suktaSelect"></select>
+      <div id="description"></div>
+      <label for="mantraSelect">Select Mantra:</label>
+      <select id="mantraSelect"></select>
+    </div>
+  </div>
+  <svg width="960" height="600"></svg>
+
+  <script>
+    const mandalaColors = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf", "#999999", "#66c2a5"];
+    const svg = d3.select("svg");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
+
+    let suktaData = {};
+    let mantraMap = {};
+    let breadcrumbTrail = [];
+
+    Promise.all([
+      d3.csv("suktas.csv"),
+      d3.csv("mantra_links.csv")
+    ]).then(([suktas, links]) => {
+      suktas.forEach(d => {
+        const mandala = d.mandala?.trim();
+        const sukta = d.sukta?.trim();
+        const key = `${mandala}.${sukta}`;
+        suktaData[key] = { name: d.name?.trim(), description: d.description?.trim() };
+      });
+
+      links.forEach(d => {
+        const mandala = d.mandala?.trim();
+        const sukta = d.sukta?.trim();
+        const key = `${mandala}.${sukta}`;
+        if (!mantraMap[key]) mantraMap[key] = {};
+        const mantra = d.mantra?.trim();
+        const related = Object.entries(d)
+          .filter(([k, _]) => !['mandala', 'sukta', 'mantra'].includes(k))
+          .map(([_, v]) => v?.trim())
+          .filter(Boolean);
+        mantraMap[key][mantra] = related;
+      });
+
+      const mandalaSelect = document.getElementById("mandalaSelect");
+      const mandalas = Array.from(new Set(Object.keys(suktaData).map(key => key.split(".")[0])));
+      mandalas.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.innerText = `Mandala ${m}`;
+        mandalaSelect.appendChild(opt);
+      });
+
+      mandalaSelect.addEventListener("change", updateSuktaDropdown);
+      document.getElementById("suktaSelect").addEventListener("change", updateDescription);
+      document.getElementById("mantraSelect").addEventListener("change", updateGraph);
+
+      updateSuktaDropdown();
+    });
+
+    function updateSuktaDropdown() {
+      const selectedMandala = document.getElementById("mandalaSelect").value;
+      const suktaSelect = document.getElementById("suktaSelect");
+      suktaSelect.innerHTML = "";
+      Object.keys(suktaData).filter(key => key.startsWith(selectedMandala + "."))
+        .forEach(key => {
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.innerText = `${key} - ${suktaData[key].name}`;
+          suktaSelect.appendChild(opt);
+        });
+      updateDescription();
+    }
+
+    function goToBreadcrumb(index) {
+      const target = breadcrumbTrail[index];
+      const [mandala, sukta, mantra] = target.split(".");
+      document.getElementById("mandalaSelect").value = mandala;
+      updateSuktaDropdown();
+      setTimeout(() => {
+        document.getElementById("suktaSelect").value = `${mandala}.${sukta}`;
+        updateDescription();
+        setTimeout(() => {
+          document.getElementById("mantraSelect").value = mantra;
+          updateGraph();
+        }, 0);
+      }, 0);
+    }
+
+    function updateDescription() {
+      const selectedSukta = document.getElementById("suktaSelect").value;
+      document.getElementById("description").innerText = suktaData[selectedSukta]?.description || "";
+      const mantraSelect = document.getElementById("mantraSelect");
+      mantraSelect.innerHTML = "";
+      if (mantraMap[selectedSukta]) {
+        Object.keys(mantraMap[selectedSukta]).forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.innerText = m;
+          mantraSelect.appendChild(opt);
+        });
+      }
+      updateGraph();
+    }
+
+	function updateBreadcrumb() {
+      const container = document.getElementById("breadcrumb");
+      container.innerHTML = breadcrumbTrail.map((id, i) =>
+        `<span onclick='goToBreadcrumb(${i})'>${id}</span>`
+      ).join(" &raquo; ");
+    }
+    
+	function updateGraph() {
+      const selectedSukta = document.getElementById("suktaSelect").value;
+      const selectedMantra = document.getElementById("mantraSelect").value;
+      if (!selectedSukta || !selectedMantra) return;
+
+      const related = mantraMap[selectedSukta][selectedMantra] || [];
+      const parentId = `${selectedSukta}.${selectedMantra}`;
+
+      if (breadcrumbTrail[breadcrumbTrail.length - 1] !== parentId) {
+        breadcrumbTrail.push(parentId);
+        updateBreadcrumb();
+      }
+
+      const nodes = [{ id: parentId, group: getMandalaIndex(selectedSukta) }].concat(
+        related.map(id => ({ id: id, group: getMandalaIndex(id.split(".")[0]) }))
+      );
+
+      const links = related.map(child => ({ source: parentId, target: child }));
+
+      svg.selectAll("*").remove();
+
+      const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+        .force("charge", d3.forceManyBody())
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+      const link = svg.append("g")
+        .attr("stroke", "#999")
+        .attr("stroke-opacity", 0.6)
+        .selectAll("line")
+        .data(links)
+        .join("line")
+        .attr("stroke-width", 2);
+
+      const node = svg.append("g")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.5)
+        .selectAll("circle")
+        .data(nodes)
+        .join("circle")
+        .attr("r", 10)
+        .attr("fill", d => mandalaColors[d.group % mandalaColors.length])
+        .call(drag(simulation))
+        .on("click", (event, d) => {
+          const [mandala, sukta, mantra] = d.id.split(".");
+          const newSuktaKey = `${mandala}.${sukta}`;
+          if (mantraMap[newSuktaKey] && mantraMap[newSuktaKey][mantra]) {
+            document.getElementById("mandalaSelect").value = mandala;
+            updateSuktaDropdown();
+            setTimeout(() => {
+              document.getElementById("suktaSelect").value = newSuktaKey;
+              updateDescription();
+              setTimeout(() => {
+                document.getElementById("mantraSelect").value = mantra;
+                updateGraph();
+              }, 0);
+            }, 0);
+          }
+        });
+
+      const text = svg.append("g")
+        .selectAll("text")
+        .data(nodes)
+        .join("text")
+        .text(d => d.id)
+        .attr("font-size", 12)
+        .attr("pointer-events", "none");
+
+      simulation.on("tick", () => {
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+
+        node
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y);
+
+        text
+          .attr("x", d => d.x + 12)
+          .attr("y", d => d.y + 4);
+      });
+    }
+
+    function drag(simulation) {
+      return d3.drag()
+        .on("start", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on("drag", (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        });
+    }
+
+    function getMandalaIndex(mandalaStr) {
+      const mandala = parseInt(mandalaStr, 10);
+      return isNaN(mandala) ? 0 : mandala - 1;
+    }
+  </script>
+</body>
+</html>
