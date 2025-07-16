@@ -20,14 +20,20 @@
 <body>
   <div id="header">
     <div id="aboutBox">
-      <h2>About This Page</h2>
+      <h2>Rigveda Sukta Navigator</h2>
       <p>This page visualizes the relationships between mantras in the Rigveda. 
 		Relationship is based on repetition of phrases or concepts in the mantras.
+		The relationships are determined as 
+		<ol>
+		<li>Repetition of words in same sequence in the two mantras - substring matching.</li>
+		<li>Repetition of similar words in the two mantras - here the concept is given importance.</li>
+		</ol>
+		In the first case, the words are taken from the full mantra form and not from the 'pada' patha form. Sandhis are retained as is.
+	  <hr>
 	  Select a Mandala, Sukta, and Mantra to explore its connections to others. 
 	  Click on any node to navigate further.</p>
     </div>
     <div id="controls">
-      <div id="breadcrumb"></div>
       <label for="mandalaSelect">Select Mandala:</label>
       <select id="mandalaSelect"></select>
       <label for="suktaSelect">Select Sukta:</label>
@@ -35,6 +41,8 @@
       <div id="description"></div>
       <label for="mantraSelect">Select Mantra:</label>
       <select id="mantraSelect"></select>
+	  <div id="breadcrumb"></div>
+	  <hr style="width: 80%; margin-top: 20px; margin-bottom: 10px;">
     </div>
   </div>
   <svg width="960" height="600"></svg>
