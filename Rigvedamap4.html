@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rigveda Mantra Graph</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root { --control-width: 300px; }
+
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    background: #fff;
+    color: #111;
+  }
+  #header {
+    padding: 20px;
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+  }
+  #aboutBox {
+    max-width: 800px;
+    margin: 0 auto 10px auto;
+    padding: 10px 16px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    text-align: left;
+  }
+  #controls {
+    margin: 10px auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #controls label {
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  #controls select {
+    margin: 4px 0 10px 0;
+    width: var(--control-width);
+    max-width: 90vw;
+    padding: 4px;
+  }
+  #description {
+    margin: 8px 0 16px 0;
+    width: var(--control-width);
+    max-width: 90vw;
+    min-height: 40px;
+    padding: 6px;
+    border: 1px solid #ddd;
+    background: #fff;
+    text-align: left;
+    overflow-y: auto;
+    max-height: 120px;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+  #breadcrumb {
+    margin: 10px;
+    font-size: 14px;
+    color: #444;
+    max-width: 800px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  #breadcrumb span {
+    cursor: pointer;
+    color: #0077cc;
+  }
+  #breadcrumb span:hover {
+    text-decoration: underline;
+  }
+  #graphWrapper {
+    width: 100%;
+    overflow: hidden;
+  }
+  svg {
+    display: block;
+    margin: 0 auto;
+    background: #fff;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+  }
+  footer {
+    padding: 16px;
+    font-size: 13px;
+    color: #666;
+    background: #fafafa;
+    border-top: 1px solid #ccc;
+  }
+  .node { cursor: pointer; stroke: #fff; stroke-width: 1.5px; }
+  .link { stroke-opacity: 0.8; }
+
+  /* Tooltip */
+  #tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: #ffffe0;
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+    font-size: 13px;
+    line-height: 1.2;
+    max-width: 260px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+  <div id="header">
+    <div id="aboutBox">
+      <center><h2>About This Page</h2></center>
+      <p>
+        Visualize relationships between Rigveda mantras. Use the Mandala → Sukta → Mantra
+        selectors to explore the graph. Click a node to navigate. Edge thickness reflects
+        “closeness”; edge color gradients reflect the Mandalas of the connected mantras.
+		Relations are determined based on 
+		<ol>
+		<li></li>
+		<li></li>
+		</ol>
+      </p>
+    </div>
+    <div id="controls">
+      <div id="breadcrumb"></div>
+      <label for="mandalaSelect">Select Mandala:</label>
+      <select id="mandalaSelect"></select>
+      <label for="suktaSelect">Select Sukta:</label>
+      <select id="suktaSelect"></select>
+      <div id="description"></div>
+      <hr style="width: 80%; margin-top: 12px; margin-bottom: 12px;">
+      <label for="mantraSelect">Select Mantra:</label>
+      <select id="mantraSelect"></select>
+    </div>
+  </div>
+
+  <div id="graphWrapper">
+    <svg id="graph" width="1000" height="600"></svg>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <footer>
+    © <span id="copyYear"></span> Ananth Narayan S / Personal Study Use Only.
+  </footer>
+
+<script>
+/* ------------------------------------------------------------------
+   Configuration
+------------------------------------------------------------------ */
+const mandalaColors = [
+  "#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00",
+  "#ffff33","#a65628","#f781bf","#999999","#66c2a5"
+];
+
+// Mandala text files (update names to match yours)
+const mandalaTextFiles = {
+  "1":"mandala1.txt", "2":"mandala2.txt", "3":"mandala3.txt",
+  "4":"mandala4.txt", "5":"mandala5.txt", "6":"mandala6.txt",
+  "7":"mandala7.txt", "8":"mandala8.txt", "9":"mandala9.txt",
+  "10":"mandala10.txt"
+};
+
+/* ------------------------------------------------------------------
+   Data stores
+------------------------------------------------------------------ */
+const suktaData    = {};  // mandala.sukta -> {name, description}
+const mantraData   = {};  // mandala.sukta.mantra -> {description}
+const edgesData    = [];  // {source, target, closeness}
+const mandalaTexts = {};  // mandala -> Map(id -> full text line)
+
+/* For convenient lookups */
+const allNodeIDs = new Set(); // all IDs seen in edges
+
+/* Breadcrumb (limit 5) */
+let breadcrumbTrail = [];
+
+/* D3 handles */
+const svg     = d3.select("#graph");
+const width   = +svg.attr("width");
+const height  = +svg.attr("height");
+const tooltip = d3.select("#tooltip");
+
+/* Copy year in footer */
+document.getElementById("copyYear").textContent = new Date().getFullYear();
+
+/* ------------------------------------------------------------------
+   Load CSVs
+------------------------------------------------------------------ */
+Promise.all([
+  d3.csv("suktas.csv"),
+  d3.csv("mantras.csv"),
+  d3.csv("edges.csv")
+]).then(([suktas, mantras, edges]) => {
+
+  /* ---- suktas.csv ---- */
+  suktas.forEach(d => {
+    const mandala = (d.mandala||"").trim();
+    const sukta   = (d.sukta||"").trim();
+    if (!mandala || !sukta) return;
+    const key = mandala + "." + sukta;
+    suktaData[key] = {
+      name:        (d.name||"").trim(),
+      description: (d.description||"").trim()
+    };
+  });
+
+  /* ---- mantras.csv ---- */
+  mantras.forEach(d => {
+    const id = (d.id||"").trim(); // mandala.sukta.mantra
+    if (!id) return;
+    mantraData[id] = { description: (d.description||"").trim() };
+  });
+
+  /* ---- edges.csv (undirected) ---- */
+  const seen = new Set();
+  edges.forEach(d => {
+    const s = (d.source||"").trim();
+    const t = (d.target||"").trim();
+    if (!s || !t) return;
+    const closeness = +d.closeness || 1;
+
+    // canonical undirected
+    const [a,b] = s < t ? [s,t] : [t,s];
+    const key = a + "--" + b;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    edgesData.push({source:a, target:b, closeness});
+    allNodeIDs.add(a);
+    allNodeIDs.add(b);
+  });
+
+  /* Populate Mandala dropdown */
+  const mandalaSelect = document.getElementById("mandalaSelect");
+  const mandalas = Array.from(new Set(Object.keys(suktaData).map(k => k.split(".")[0])))
+                        .sort((a,b)=>+a-+b);
+  mandalas.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.innerText = "Mandala " + m;
+    mandalaSelect.appendChild(opt);
+  });
+
+  /* Event handlers */
+  mandalaSelect.addEventListener("change", onMandalaChange);
+  document.getElementById("suktaSelect").addEventListener("change", onSuktaChange);
+  document.getElementById("mantraSelect").addEventListener("change", onMantraChange);
+
+  /* Initialize UI */
+  onMandalaChange();
+});
+
+/* ------------------------------------------------------------------
+   Dropdown Handlers
+------------------------------------------------------------------ */
+function onMandalaChange(){
+  const mandala = document.getElementById("mandalaSelect").value;
+  populateSuktaDropdown(mandala);
+  onSuktaChange();
+  // optional eager load
+  loadMandalaText(mandala);
+}
+
+function onSuktaChange(){
+  const mandala = document.getElementById("mandalaSelect").value;
+  const sukta   = document.getElementById("suktaSelect").value;
+  updateDescriptionBox(mandala, sukta);
+  populateMantraDropdown(mandala, sukta);
+  onMantraChange();
+}
+
+function onMantraChange(){
+  const mantraId = document.getElementById("mantraSelect").value; // full id
+  if (mantraId){
+    updateGraph(mantraId);
+    updateBreadcrumb(mantraId);
+  }
+}
+
+/* ------------------------------------------------------------------
+   Populate Dropdowns
+------------------------------------------------------------------ */
+function populateSuktaDropdown(mandala){
+  const sel = document.getElementById("suktaSelect");
+  sel.innerHTML = "";
+  const suktas = Object.keys(suktaData)
+    .filter(k => k.startsWith(mandala + "."))
+    .map(k => ({key:k, name:suktaData[k].name}))
+    .sort((a,b)=>+a.key.split(".")[1]-+b.key.split(".")[1]);
+  suktas.forEach(s => {
+    const sukNum = s.key.split(".")[1];
+    const opt = document.createElement("option");
+    opt.value = sukNum;
+    opt.innerText = `Sukta ${sukNum} - ${s.name}`;
+    sel.appendChild(opt);
+  });
+}
+
+function populateMantraDropdown(mandala, sukta){
+  const sel = document.getElementById("mantraSelect");
+  sel.innerHTML = "";
+
+  const prefix = mandala + "." + sukta + ".";
+  const ids = new Set();
+
+  // gather from edges
+  edgesData.forEach(e => {
+    if (e.source.startsWith(prefix)) ids.add(e.source);
+    if (e.target.startsWith(prefix)) ids.add(e.target);
+  });
+
+  // gather from mantras.csv (optional)
+  Object.keys(mantraData).forEach(id => {
+    if (id.startsWith(prefix)) ids.add(id);
+  });
+
+  // sort numerically by mantra #
+  Array.from(ids).sort((a,b)=>+a.split(".")[2]-+b.split(".")[2]).forEach(id => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.innerText = id.split(".")[2];
+    sel.appendChild(opt);
+  });
+}
+
+/* ------------------------------------------------------------------
+   Sukta Description Box
+------------------------------------------------------------------ */
+function updateDescriptionBox(mandala, sukta){
+  const key = mandala + "." + sukta;
+  const box = document.getElementById("description");
+  const d = suktaData[key];
+  if (!d){ box.textContent = ""; return; }
+  box.innerHTML = `<strong>${d.name||""}</strong><br>${d.description||""}`;
+}
+
+/* ------------------------------------------------------------------
+   Breadcrumb (limit 5)
+------------------------------------------------------------------ */
+function updateBreadcrumb(currentId){
+  if (breadcrumbTrail[breadcrumbTrail.length-1] !== currentId){
+    breadcrumbTrail.push(currentId);
+    if (breadcrumbTrail.length > 5) breadcrumbTrail.shift();
+  }
+  const container = document.getElementById("breadcrumb");
+  container.innerHTML = breadcrumbTrail
+    .map((id,i)=>`<span data-index="${i}">${id}</span>`)
+    .join(" &raquo; ");
+  Array.from(container.querySelectorAll("span")).forEach(span=>{
+    span.addEventListener("click",()=>{
+      const idx = +span.getAttribute("data-index");
+      goToBreadcrumb(idx);
+    });
+  });
+}
+
+function goToBreadcrumb(index){
+  const id = breadcrumbTrail[index];
+  if (!id) return;
+  const [m,s] = id.split(".");
+  document.getElementById("mandalaSelect").value = m;
+  populateSuktaDropdown(m);
+  document.getElementById("suktaSelect").value = s;
+  updateDescriptionBox(m,s);
+  populateMantraDropdown(m,s);
+  document.getElementById("mantraSelect").value = id;
+  updateGraph(id);
+  // trim to clicked index
+  breadcrumbTrail = breadcrumbTrail.slice(0,index+1);
+  updateBreadcrumb(id);
+}
+
+/* ------------------------------------------------------------------
+   Mandala Text Loading & Lookup
+------------------------------------------------------------------ */
+function loadMandalaText(mandala){
+  if (mandalaTexts[mandala]) return Promise.resolve(mandalaTexts[mandala]);
+  const file = mandalaTextFiles[mandala];
+  if (!file) return Promise.resolve(new Map());
+
+  return fetch(file)
+    .then(r=>r.text())
+    .then(txt=>{
+      const map = new Map();
+      txt.split(/\r?\n/).forEach(line=>{
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        const parts = trimmed.split(/\s+/);
+        const id = parts[parts.length-1];
+        const text = trimmed.slice(0, trimmed.lastIndexOf(id)).trim();
+        if (id.match(/^\d+\.\d+\.\d+$/)){
+          map.set(id, text);
+        }
+      });
+      mandalaTexts[mandala] = map;
+      return map;
+    })
+    .catch(()=>new Map());
+}
+
+function getMantraText(id){
+  // 1) mantras.csv
+  if (mantraData[id] && mantraData[id].description){
+    return mantraData[id].description;
+  }
+  // 2) mandalaN.txt (load if needed)
+  const mandala = id.split(".")[0];
+  const map = mandalaTexts[mandala];
+  if (map && map.has(id)) return map.get(id);
+  // fallback: show ID
+  return id;
+}
+
+/* ------------------------------------------------------------------
+   Graph Rendering
+------------------------------------------------------------------ */
+function updateGraph(centerId){
+  // ensure mandala text loaded (for tooltips)
+  const m = centerId.split(".")[0];
+  loadMandalaText(m).then(()=>{
+    renderGraph(centerId);
+  });
+}
+
+function renderGraph(centerId){
+  // Build ego-graph: center node + all directly connected nodes
+  const relatedEdges = edgesData.filter(e => e.source === centerId || e.target === centerId);
+
+  const nodeSet = new Set([centerId]);
+  relatedEdges.forEach(e=>{
+    nodeSet.add(e.source);
+    nodeSet.add(e.target);
+  });
+
+  const nodes = Array.from(nodeSet).map(id=>({
+    id,
+    group:+id.split(".")[0] // mandala number
+  }));
+
+  // Build link objects; D3 expects sources/targets to resolve to node objects
+  const links = relatedEdges.map(e=>({
+    source: e.source,
+    target: e.target,
+    closeness: e.closeness
+  }));
+
+  // clear existing graph
+  svg.selectAll("*").remove();
+
+  // defs for gradients
+  const defs = svg.append("defs");
+
+  // thickness scale
+  const thickScale = d3.scaleLinear().domain([1,5]).range([1,8]);
+
+  // Add links (placeholder stroke; replaced after line creation)
+  const linkSel = svg.append("g")
+    .attr("class","links")
+    .selectAll("line")
+    .data(links)
+    .join("line")
+    .attr("class","link")
+    .attr("stroke-width", d=>thickScale(clampCloseness(d.closeness)))
+    .attr("stroke", "#999"); // temp
+
+  // Add nodes
+  const nodeSel = svg.append("g")
+    .attr("class","nodes")
+    .selectAll("circle")
+    .data(nodes)
+    .join("circle")
+    .attr("r",10)
+    .attr("fill", d=>mandalaColors[(d.group-1)%mandalaColors.length])
+    .attr("stroke","#fff")
+    .attr("stroke-width",1.5)
+    .on("click", (event,d)=>selectNodeFromGraph(d.id))
+    .on("mouseover",(event,d)=>showTooltip(event,d.id))
+    .on("mousemove",(event,d)=>moveTooltip(event))
+    .on("mouseout", hideTooltip);
+
+  // Labels (IDs)
+  const labelSel = svg.append("g")
+    .attr("class","labels")
+    .selectAll("text")
+    .data(nodes)
+    .join("text")
+    .text(d=>d.id)
+    .attr("font-size",12)
+    .attr("pointer-events","none");
+
+  // Force sim
+  const simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d=>d.id).distance(150))
+    .force("charge", d3.forceManyBody())
+    .force("center", d3.forceCenter(width/2, height/2));
+
+  simulation.on("tick", () => {
+    linkSel
+      .attr("x1", d=>d.source.x)
+      .attr("y1", d=>d.source.y)
+      .attr("x2", d=>d.target.x)
+      .attr("y2", d=>d.target.y);
+
+    nodeSel
+      .attr("cx", d=>d.x)
+      .attr("cy", d=>d.y);
+
+    labelSel
+      .attr("x", d=>d.x+12)
+      .attr("y", d=>d.y+4);
+  });
+
+  // After simulation created, assign gradient strokes
+  linkSel.each(function(d){
+    // d.source and d.target are now node objects; get ids safely:
+    const sid = typeof d.source === "string" ? d.source : d.source.id;
+    const tid = typeof d.target === "string" ? d.target : d.target.id;
+    const gradientId = createEdgeGradient(defs, sid, tid);
+    d3.select(this).attr("stroke", `url(#${gradientId})`);
+  });
+}
+
+/* Clamp closeness into 1..5 for safety */
+function clampCloseness(v){
+  v = +v;
+  if (isNaN(v)) return 1;
+  if (v < 1) return 1;
+  if (v > 5) return 5;
+  return v;
+}
+
+/* Create (or reuse) a linear gradient for an edge based on Mandala colors */
+const gradientCache = new Map(); // key sid|tid canonical
+
+function createEdgeGradient(defsSel, sid, tid){
+  // canonical key so gradient reused regardless of direction
+  const [a,b] = sid < tid ? [sid,tid] : [tid,sid];
+  const key = a + "|" + b;
+  if (gradientCache.has(key)) return gradientCache.get(key);
+
+  const sourceMandala = +a.split(".")[0];
+  const targetMandala = +b.split(".")[0];
+  const color1 = mandalaColors[(sourceMandala-1)%mandalaColors.length];
+  const color2 = mandalaColors[(targetMandala-1)%mandalaColors.length];
+
+  const gradId = "grad-" + a.replace(/\./g,"-") + "-" + b.replace(/\./g,"-");
+  const lg = defsSel.append("linearGradient")
+    .attr("id", gradId)
+    .attr("x1","0%").attr("y1","0%")
+    .attr("x2","100%").attr("y2","0%");
+  lg.append("stop").attr("offset","0%").attr("stop-color",color1);
+  lg.append("stop").attr("offset","100%").attr("stop-color",color2);
+
+  gradientCache.set(key, gradId);
+  return gradId;
+}
+
+/* ------------------------------------------------------------------
+   Tooltip Helpers
+------------------------------------------------------------------ */
+function showTooltip(event, id){
+  const txt = getMantraText(id);
+  tooltip.html(`<strong>${id}</strong><br>${txt}`);
+  tooltip.style("opacity",1);
+  moveTooltip(event);
+}
+function moveTooltip(event){
+  tooltip.style("left",(event.pageX+12)+"px")
+         .style("top",(event.pageY+12)+"px");
+}
+function hideTooltip(){
+  tooltip.style("opacity",0);
+}
+
+/* ------------------------------------------------------------------
+   Sync Graph Click -> Dropdowns
+------------------------------------------------------------------ */
+function selectNodeFromGraph(id){
+  // parse parts
+  const parts = id.split(".");
+  const m = parts[0];
+  const s = parts[1];
+
+  // update dropdowns
+  document.getElementById("mandalaSelect").value = m;
+  populateSuktaDropdown(m);
+  document.getElementById("suktaSelect").value = s;
+  updateDescriptionBox(m,s);
+  populateMantraDropdown(m,s);
+  document.getElementById("mantraSelect").value = id;
+
+  // update graph + breadcrumb
+  updateGraph(id);
+  updateBreadcrumb(id);
+
+  // ensure mandala texts loaded (for tooltip)
+  loadMandalaText(m);
+}
+
+/* ------------------------------------------------------------------
+   Breadcrumb Click Navigation
+------------------------------------------------------------------ */
+function goToBreadcrumb(index){
+  const id = breadcrumbTrail[index];
+  if (!id) return;
+  const [m,s] = id.split(".");
+  document.getElementById("mandalaSelect").value = m;
+  populateSuktaDropdown(m);
+  document.getElementById("suktaSelect").value = s;
+  updateDescriptionBox(m,s);
+  populateMantraDropdown(m,s);
+  document.getElementById("mantraSelect").value = id;
+  updateGraph(id);
+  breadcrumbTrail = breadcrumbTrail.slice(0,index+1);
+  updateBreadcrumb(id);
+}
+</script>
+</body>
+</html>
