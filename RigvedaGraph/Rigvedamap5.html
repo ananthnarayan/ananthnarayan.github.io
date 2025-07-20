@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rigveda Graph Visualization</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+  header { margin: 20px auto; }
+  .dropdown-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+  #breadcrumb { margin-top: 10px; font-size: 14px; color: #333; }
+  #graph { display: block; margin: auto; background: #f9f9f9; border: 1px solid #ccc; }
+  .tooltip { position: absolute; background: #fff; border: 1px solid #ccc; padding: 6px; border-radius: 4px; opacity: 0; pointer-events: none; font-size: 12px; max-width: 260px; }
+  footer { margin-top: 15px; font-size: 12px; color: #555; }
+  #about { max-width: 800px; margin: 10px auto; font-size: 14px; text-align:left; }
+  hr { width: 90%; margin: 10px auto; }
+  #breadcrumb span { cursor: pointer; color: #0074D9; }
+  #breadcrumb span:hover { text-decoration: underline; }
+  #suktaDescription, #mantraDescription {
+    max-width: 800px; margin: 10px auto; padding: 10px;
+    border: 1px solid #ccc; background: #fefefe; text-align: left; font-size: 14px;
+  }
+  #suktaDescription { font-weight: bold; }
+  .no-desc { color:#777; font-style:italic; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Rigveda Mantra Graph</h1>
+  <div class="dropdown-container">
+    <select id="mandalaSelect"><option value="">Select Mandala</option></select>
+    <select id="suktaSelect"><option value="">Select Sukta</option></select>
+    <select id="mantraSelect"><option value="">Select Mantra</option></select>
+  </div>
+  <div id="breadcrumb"></div>
+</header>
+<hr>
+<div id="about">
+  <p>This page visualizes relationships between Rigveda mantras. Use the dropdowns or click nodes to navigate.</p>
+</div>
+
+<div id="suktaDescription">Select a Sukta to see its description.</div>
+<div id="mantraDescription">Select a Mantra to see its description.</div>
+
+<svg id="graph" width="1000" height="600"></svg>
+<div class="tooltip" id="tooltip"></div>
+<footer>&copy; 2025 Rigveda Graph Project</footer>
+
+<script>
+const width = 1000, height = 600;
+const svg = d3.select("#graph");
+const tooltip = d3.select("#tooltip");
+
+const mandalaColors = ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00",
+                       "#ffff33","#a65628","#f781bf","#999999","#66c2a5"];
+
+let suktasData = [];
+let mantrasData = {};
+let edgesData = [];
+let mandalaTextMap = {};
+let breadcrumbTrail = [];
+let dataReady = false;
+
+const DEFAULT_START_ID = "1.1.1";
+
+function cleanId(raw) {
+  return (raw || "").trim().replace(/[^0-9.]/g, "");
+}
+function clampCloseness(c){ return Math.max(1, Math.min(+c || 1, 5)); }
+
+/* ---------------- Load Data ---------------- */
+Promise.all([
+  d3.csv("suktas.csv"),
+  d3.csv("mantras.csv"),
+  d3.csv("edges.csv"),
+  ...[...Array(10).keys()].map(i => d3.text(`mandala${i+1}.txt`))
+]).then(([suktas, mantras, edges, ...mandalaFiles])=>{
+  // Load suktas.csv
+  suktasData = suktas.map(d => ({
+    mandala: cleanId(d.mandala),
+    sukta: cleanId(d.sukta),
+    name: (d.name||"").trim(),
+    description: (d.description||d.Description||"").trim()
+  }));
+
+  // Load mantras.csv
+  const descKey = Object.keys(mantras[0] || {}).find(k => /^description$/i.test(k)) || "description";
+  mantras.forEach(row => {
+    const id = cleanId(row.id || row.mantra || row.Mantra || "");
+    if (!id) return;
+    mantrasData[id] = (row[descKey] || "").trim();
+  });
+
+  // Load edges.csv
+  const seen = new Set();
+  edges.forEach(e=>{
+    const s = cleanId(e.source);
+    const t = cleanId(e.target);
+    if(!s || !t) return;
+    const closeness = clampCloseness(e.closeness);
+    const [a,b] = s < t ? [s,t] : [t,s];
+    const key = a+"--"+b;
+    if(seen.has(key)) return;
+    seen.add(key);
+    edgesData.push({source:a, target:b, closeness});
+  });
+
+  // Load mandalaX.txt
+  mandalaFiles.forEach((text, idx) => {
+    const mandalaNum = String(idx+1);
+    const map = {};
+    text.split(/\r?\n/).forEach(line=>{
+      line = line.trim();
+      if(!line) return;
+      const parts = line.split(/\s+/);
+      const rawId = parts[parts.length-1];
+      const id = cleanId(rawId);
+      if(!/^\d+\.\d+\.\d+$/.test(id)) return;
+      const rawText = line.slice(0, line.lastIndexOf(rawId)).trim();
+      map[id] = rawText;
+    });
+    mandalaTextMap[mandalaNum] = map;
+  });
+
+  populateMandalaDropdown();
+  dataReady = true;
+  navigateToNode(DEFAULT_START_ID);
+}).catch(err=>{
+  console.error("Data load error:", err);
+});
+
+/* ---------------- Dropdowns ---------------- */
+function populateMandalaDropdown(){
+  const mandalaSelect = document.getElementById("mandalaSelect");
+  mandalaSelect.innerHTML = "<option value=''>Select Mandala</option>";
+  [...new Set(suktasData.map(d=>d.mandala))]
+    .sort((a,b)=>+a-+b)
+    .forEach(m=>{
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = "Mandala " + m;
+      mandalaSelect.appendChild(opt);
+    });
+
+  mandalaSelect.addEventListener("change", onMandalaChange);
+  document.getElementById("suktaSelect").addEventListener("change", onSuktaChange);
+  document.getElementById("mantraSelect").addEventListener("change", onMantraChange);
+}
+
+function onMandalaChange(){
+  const mandala = cleanId(this.value);
+  const suktaSelect = document.getElementById("suktaSelect");
+  suktaSelect.innerHTML = "<option value=''>Select Sukta</option>";
+  document.getElementById("mantraSelect").innerHTML = "<option value=''>Select Mantra</option>";
+  document.getElementById("suktaDescription").textContent = "Select a Sukta to see its description.";
+  document.getElementById("mantraDescription").textContent = "Select a Mantra to see its description.";
+  if(!mandala) return;
+  suktasData.filter(d=>d.mandala===mandala)
+    .sort((a,b)=>+a.sukta-+b.sukta)
+    .forEach(s=>{
+      const opt = document.createElement("option");
+      opt.value = s.sukta;
+      opt.textContent = `Sukta ${s.sukta} (${s.name})`;
+      suktaSelect.appendChild(opt);
+    });
+}
+
+function onSuktaChange(){
+  const mandala = cleanId(document.getElementById("mandalaSelect").value);
+  const sukta = cleanId(this.value);
+  const mantraSelect = document.getElementById("mantraSelect");
+  mantraSelect.innerHTML = "<option value=''>Select Mantra</option>";
+  document.getElementById("mantraDescription").textContent = "Select a Mantra to see its description.";
+  if(!sukta) return;
+
+  const info = suktasData.find(d=>d.mandala===mandala && d.sukta===sukta);
+  document.getElementById("suktaDescription").innerHTML =
+    info && info.description ? info.description : "<span class='no-desc'>No Sukta description available.</span>";
+
+  const prefix = `${mandala}.${sukta}.`;
+  const ids = [];
+  const map = mandalaTextMap[mandala];
+  if(map){
+    Object.keys(map).forEach(id=>{
+      if(id.startsWith(prefix)) ids.push(id);
+    });
+  }
+
+  ids.sort((a,b)=>+a.split(".")[2]-+b.split(".")[2]);
+  if(ids.length === 0){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No mantras available";
+    mantraSelect.appendChild(opt);
+    return;
+  }
+
+  ids.forEach(id=>{
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = id;
+    mantraSelect.appendChild(opt);
+  });
+}
+
+function onMantraChange(){
+  const id = cleanId(this.value);
+  if(!id) return;
+  const description = mantrasData[id];
+  document.getElementById("mantraDescription").innerHTML = 
+    description ? description : `<span class='no-desc'>No description available for ${id}.</span>`;
+  navigateToNode(id);
+}
+
+/* ---------------- Breadcrumb ---------------- */
+function updateBreadcrumb(){
+  const container = document.getElementById("breadcrumb");
+  const recentTrail = breadcrumbTrail.slice(-5);
+  container.innerHTML = recentTrail.map(id =>
+    `<span onclick="navigateToNode('${id}')">${id}</span>`
+  ).join(" &raquo; ");
+}
+
+function navigateToNode(id){
+  if(!dataReady) return;
+  id = cleanId(id);
+  if(!id) return;
+  const description = mantrasData[id];
+  document.getElementById("mantraDescription").innerHTML = 
+    description ? description : `<span class='no-desc'>No description available for ${id}.</span>`;
+  if(!breadcrumbTrail.length || breadcrumbTrail[breadcrumbTrail.length-1] !== id){
+    breadcrumbTrail.push(id);
+    if(breadcrumbTrail.length > 5) breadcrumbTrail.shift();
+    updateBreadcrumb();
+  }
+  updateGraph(id);
+}
+
+/* ---------------- Graph Rendering ---------------- */
+function createEdgeGradient(defs, sourceId, targetId){
+  const sMandala = +sourceId.split(".")[0];
+  const tMandala = +targetId.split(".")[0];
+  const c1 = mandalaColors[(sMandala-1)%mandalaColors.length];
+  const c2 = mandalaColors[(tMandala-1)%mandalaColors.length];
+  const gradId = `grad-${sourceId}-${targetId}`.replace(/\./g,"-");
+  const grad = defs.append("linearGradient")
+    .attr("id", gradId).attr("x1","0%").attr("y1","0%")
+    .attr("x2","100%").attr("y2","0%");
+  grad.append("stop").attr("offset","0%").attr("stop-color",c1);
+  grad.append("stop").attr("offset","100%").attr("stop-color",c2);
+  return gradId;
+}
+
+function getMantraRawLine(id){
+  const m = id.split(".")[0];
+  const map = mandalaTextMap[m];
+  return map ? map[id] : null;
+}
+
+function updateGraph(centerId){
+  const relatedEdges = edgesData.filter(e=>e.source===centerId || e.target===centerId);
+  const nodeSet = new Set([centerId]);
+  relatedEdges.forEach(e=>{
+    nodeSet.add(e.source);
+    nodeSet.add(e.target);
+  });
+
+  const nodes = Array.from(nodeSet).map(id=>({ id, group:+id.split(".")[0] }));
+  const links = relatedEdges.map(e=>({ source:e.source, target:e.target, closeness:e.closeness }));
+
+  svg.selectAll("*").remove();
+  const defs = svg.append("defs");
+  const thickScale = d3.scaleLinear().domain([1,5]).range([1,8]);
+
+  const linkSel = svg.append("g").attr("class","links")
+    .selectAll("line").data(links).join("line")
+    .attr("stroke-width", d=>thickScale(clampCloseness(d.closeness)))
+    .attr("stroke","#999");
+
+  const nodeSel = svg.append("g").attr("class","nodes")
+    .selectAll("circle").data(nodes).join("circle")
+    .attr("r",10)
+    .attr("fill", d=>mandalaColors[(d.group-1)%mandalaColors.length])
+    .attr("stroke","#fff").attr("stroke-width",1.5)
+    .on("click",(event,d)=>navigateToNode(d.id))
+    .on("mouseover",(event,d)=>showTooltip(event,d.id))
+    .on("mousemove",moveTooltip)
+    .on("mouseout",hideTooltip);
+
+  const labelSel = svg.append("g").selectAll("text")
+    .data(nodes).join("text")
+    .text(d=>d.id)
+    .attr("font-size",12)
+    .attr("pointer-events","none");
+
+  const simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d=>d.id).distance(150))
+    .force("charge", d3.forceManyBody())
+    .force("center", d3.forceCenter(width/2,height/2));
+
+  simulation.on("tick",()=>{
+    linkSel
+      .attr("x1",d=>d.source.x).attr("y1",d=>d.source.y)
+      .attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+    nodeSel
+      .attr("cx",d=>d.x).attr("cy",d=>d.y);
+    labelSel
+      .attr("x",d=>d.x+12).attr("y",d=>d.y+4);
+  });
+
+  linkSel.each(function(d){
+    const sid = typeof d.source==="string" ? d.source : d.source.id;
+    const tid = typeof d.target==="string" ? d.target : d.target.id;
+    const gradId = createEdgeGradient(defs, sid, tid);
+    d3.select(this).attr("stroke",`url(#${gradId})`);
+  });
+}
+
+/* ---------------- Tooltip ---------------- */
+function showTooltip(event,id){
+  const raw = getMantraRawLine(id);
+  tooltip.html(`<strong>${id}</strong><br>${raw ? raw : ""}`)
+    .style("opacity",1);
+  moveTooltip(event);
+}
+function moveTooltip(event){
+  tooltip.style("left",(event.pageX+12)+"px")
+         .style("top",(event.pageY+12)+"px");
+}
+function hideTooltip(){ tooltip.style("opacity",0); }
+</script>
+</body>
+</html>

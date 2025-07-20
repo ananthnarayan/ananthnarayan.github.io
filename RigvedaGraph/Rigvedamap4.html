@@ -29,12 +29,26 @@
   <div id="breadcrumb"></div>
 </header>
 <hr>
-<div id="about">
-  <p>This page visualizes relationships between Rigveda mantras. Use the dropdowns or click nodes to navigate the network.</p>
+<div id="about" align="left">
+  <p >This page visualizes relationships between Rigveda mantras. Relationships are determined based 
+  on the following:
+  <ol>
+  <li> Word sequences which repeat across mantras - exact text matches.
+  </li> 
+  <li>Similar words, repeating in mantras in sequence. In this case there could 
+  be small changes in the words.</li>
+  </ol>
+  Considerations:
+  <ul>
+  <li>We do not consider the 'svara' of the words. </li>
+  </ul>
+  Use the dropdowns so select a particular mantra, or click nodes in the visualization to navigate the network.
+  Hover the mouse over a node to see the romanized version of the Rig veda mantra.
+  </p>
 </div>
 <svg id="graph" width="1000" height="600"></svg>
 <div class="tooltip" id="tooltip"></div>
-<footer>&copy; 2025 Rigveda Graph Project</footer>
+<footer>&copy;2025 Ananth Narayan S - Rigveda Graph Project - Personal Use Only.</footer>
 <script>
 const width = 1000, height = 600;
 const svg = d3.select("#graph");
