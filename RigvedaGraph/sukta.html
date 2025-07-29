@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rigveda Sukta Connections (Filtered)</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #f8f8f8; margin: 0; padding: 10px; }
+    header { text-align: center; padding: 10px; background: #e0e0e0; }
+    .dropdown-container { text-align: center; margin: 10px; }
+    select { margin: 0 10px; padding: 5px; }
+    svg { background: white; border: 1px solid #ccc; display: block; margin: 0 auto; }
+    .description-box { text-align: center; font-size: 14px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Rigveda Sukta Connections Visualization</h1>
+  </header>
+  <div class="dropdown-container">
+    <label for="mandalaSelect">Mandala:</label>
+    <select id="mandalaSelect"></select>
+    <label for="suktaSelect">Sukta:</label>
+    <select id="suktaSelect"></select>
+  </div>
+  <div class="description-box" id="suktaDescription">Select a sukta to view connections.</div>
+  <svg id="suktaGraph" width="960" height="600"></svg>
+
+  <script>
+    const mandalaColors = d3.schemeCategory10;
+    let suktas = [], allEdges = [];
+
+    Promise.all([
+      d3.csv("suktas.csv"),
+      d3.csv("edges.csv")
+    ]).then(([suktaData, edgeData]) => {
+      suktas = suktaData.map(d => ({
+        id: `${d.mandala}.${d.sukta}`,
+        mandala: +d.mandala,
+        sukta: d.sukta,
+        name: d.name || "",
+        description: d.description || ""
+      }));
+
+      allEdges = edgeData.map(d => {
+        const source = d.source.split(".").slice(0,2).join(".");
+        const target = d.target.split(".").slice(0,2).join(".");
+        return { source, target };
+      });
+
+      populateMandalaDropdown();
+    });
+
+    function populateMandalaDropdown() {
+      const mandalaSet = [...new Set(suktas.map(s => s.mandala))].sort((a,b) => a - b);
+      const mandalaSelect = d3.select("#mandalaSelect");
+      mandalaSelect.selectAll("option")
+        .data(mandalaSet)
+        .join("option")
+        .attr("value", d => d)
+        .text(d => `Mandala ${d}`);
+
+      mandalaSelect.on("change", populateSuktaDropdown);
+      populateSuktaDropdown();
+    }
+
+    function populateSuktaDropdown() {
+      const selectedMandala = +d3.select("#mandalaSelect").property("value");
+      const suktasForMandala = suktas.filter(s => s.mandala === selectedMandala);
+      const suktaSelect = d3.select("#suktaSelect");
+      suktaSelect.selectAll("option")
+        .data(suktasForMandala)
+        .join("option")
+        .attr("value", d => d.sukta)
+        .text(d => `${d.id} – ${d.name}`);
+
+      suktaSelect.on("change", drawFilteredGraph);
+      drawFilteredGraph();
+    }
+
+    function drawFilteredGraph() {
+      const selectedMandala = +d3.select("#mandalaSelect").property("value");
+      const selectedSukta = d3.select("#suktaSelect").property("value");
+      const selectedId = `${selectedMandala}.${selectedSukta}`;
+
+      const selectedSuktaObj = suktas.find(s => s.id === selectedId);
+      d3.select("#suktaDescription").text(selectedSuktaObj?.description || "No description available");
+
+      const filteredEdges = allEdges.filter(d => d.source === selectedId || d.target === selectedId);
+
+      const nodesSet = new Set(filteredEdges.flatMap(d => [d.source, d.target]));
+      nodesSet.add(selectedId);  // ensure at least one node
+
+      const nodes = Array.from(nodesSet).map(id => ({ id, mandala: +id.split(".")[0] }));
+      const nodeById = Object.fromEntries(nodes.map(n => [n.id, n]));
+
+      const svg = d3.select("#suktaGraph");
+      const width = +svg.attr("width");
+      const height = +svg.attr("height");
+
+      svg.selectAll("*").remove();
+      const defs = svg.append("defs");
+
+      filteredEdges.forEach((link, i) => {
+        const sourceId = link.source;
+        const targetId = link.target;
+        const gradId = `grad-${i}`;
+        const grad = defs.append("linearGradient")
+          .attr("id", gradId)
+          .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+        grad.append("stop").attr("offset", "0%")
+          .attr("stop-color", mandalaColors[nodeById[sourceId].mandala % 10]);
+        grad.append("stop").attr("offset", "100%")
+          .attr("stop-color", mandalaColors[nodeById[targetId].mandala % 10]);
+        link.gradient = `url(#${gradId})`;
+      });
+
+      const sim = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(filteredEdges).id(d => d.id).distance(120))
+        .force("charge", d3.forceManyBody().strength(-250))
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+      svg.append("g").attr("stroke", "#aaa")
+        .selectAll("line")
+        .data(filteredEdges)
+        .join("line")
+        .attr("stroke", d => d.gradient)
+        .attr("stroke-width", 2);
+
+      const nodeGroup = svg.append("g")
+        .selectAll("g")
+        .data(nodes)
+        .join("g")
+        .call(d3.drag()
+          .on("start", dragStart)
+          .on("drag", dragging)
+          .on("end", dragEnd));
+
+      nodeGroup.append("circle")
+        .attr("r", 10)
+        .attr("fill", d => mandalaColors[d.mandala % 10]);
+
+      nodeGroup.append("text")
+        .attr("x", 12)
+        .attr("dy", "0.35em")
+        .text(d => d.id);
+
+      sim.on("tick", () => {
+        svg.selectAll("line")
+          .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+        nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
+      });
+
+      function dragStart(event, d) {
+        if (!event.active) sim.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      }
+      function dragging(event, d) {
+        d.fx = event.x; d.fy = event.y;
+      }
+      function dragEnd(event, d) {
+        if (!event.active) sim.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      }
+    }
+  </script>
+</body>
+</html>
