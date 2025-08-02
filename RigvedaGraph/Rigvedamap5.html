@@ -6,7 +6,8 @@
 <title>Rigveda Graph Visualization</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
-  body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+  //body { font-family: serif; margin: 0; padding: 0; text-align: center; }
+  body { font-family: serif; background: #f8f8f8; margin: 0; padding: 10px; text-align: center;}
   header { margin: 20px auto; }
   .dropdown-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
   #breadcrumb { margin-top: 10px; font-size: 14px; color: #333; }
@@ -40,19 +41,18 @@
 <hr>
 <div id="about" align="left">
   <p> <b>Important: This page requires an internet connection in order to load d3.js, else the drop downs won't populate.</b> </p>
-  <p >This page visualizes relationships between Rigveda mantras. Relationships are determined based 
-  on the following:
+  <p>This page visualizes relationships between Rigveda mantras. Relationships are determined based 
+  on the words and word sequences which repeat across mantras - 
+  for example "यूयं पात स्वस्तिभिः सदा नः" repeats across many suktas in mandala 7, and "तन्नो मित्रो वरुणो मामहन्तां अदितिः सिन्धुः पृथिवी उत द्यौ" repeats in multiple suktas across the Rigveda.
   <ol>
-  <li> Word sequences which repeat across mantras - exact text matches.
-  </li> 
-  <li>Similar words, repeating in mantras in sequence. In this case there could 
-  be small changes in the words.</li>
+  <li>We also consider similar words, repeating in mantras in the same sequence. In this case there could 
+  be small changes in the words, so there is no exact word match.</li>
+  <li>We do not consider the 'svara' of the words.</li>
+  <li>Certain word sequences (आ नः,  आ नो) are intentionally not considered because they are too short or too common to be of importance. </li>
+  <li>Avagraha in the mantra is split and expanded.</li>
+  <li>We do not rearrange the words and take the words as they appear in the mantra.</li>
   </ol>
-  Considerations:
-  <ul>
-  <li>We do not consider the 'svara' of the words. </li>
-  </ul>
-  Use the dropdowns so select a particular mantra, or click nodes in the visualization to navigate the network.
+  How to use: Use the dropdowns at the top of the page to select a particular mandala-sukta-mantra.
   Hover the mouse over a node to see the romanized version of the Rig veda mantra.
   </p>
 </div>

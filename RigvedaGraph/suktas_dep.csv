@@ -2,26 +2,26 @@ mandala,sukta,name,description
 1,1,agnimILe,This is the first sukta of the Rigveda
 1,2,vAyavA yAhi ,
 1,3,ashvinA yajvarIriSho,
-1,4,surUpakR^itnumUtaye,
+1,4,surUpakR+AF4-itnumUtaye,
 1,5,A tvetA ni ShIdata,
 1,6,yu~njanti bradhnamaruShaM,
 1,7,indramidgAthino,
 1,8,endra sAnasiM rayiM,
-1,9,,
-1,10,,
-1,11,,
-1,12,,
-1,13,,
-1,14,,
-1,15,,
-1,16,,
-1,17,,
-1,18,,
-1,19,,
-1,20,,
-1,21,,
-1,22,,
-1,23,,
+1,9,indrehi matsyandhaso,
+1,10,gAyanti tvA,
+1,11,indraM vishvA,
+1,12,agniM dUtaM vR+AF4-iNImahe,
+1,13,susamiddho na A vaha,
+1,14,aibhiragne duvo ,
+1,15,indra somaM piba,
+1,16,A tvA vahantu,
+1,17,indrAvaruNayorahaM,
+1,18,somAnaM svaraNaM kR+AF4-iNuhi,
+1,19,prati tyaM chArumadhvaraM,
+1,20,ayaM devAya janmane,
+1,21,ihendrAgnI upa,
+1,22,prAtaryujA vi,
+1,23,tIvrAH somAsa,
 1,24,,
 1,25,,
 1,26,,
@@ -725,10 +725,10 @@ mandala,sukta,name,description
 9,1,svAdiShThayA madiShThayA,Pavamana 1st adhyaya starts here.
 9,2,pavasva devavIrati,Pavamana Suktam
 9,3,eSha devo amartyaH,Pavamana Suktam
-9,4,sanA cha soma,Pavamana - athA no vasyasaskR^idhi - Dhruva pada suktam
+9,4,sanA cha soma,Pavamana +AC0- athA no vasyasaskR+AF4-idhi +AC0- Dhruva pada suktam
 9,5,samiddho vishvataspatiH,Pavamana Suktam
 9,6,mandrayA soma dhArayA,Pavamana Suktam
-9,7,asR^igramindavaH pathA,Pavamana Suktam
+9,7,asR+AF4-igramindavaH pathA,Pavamana Suktam
 9,8,,Pavamana Suktam
 9,9,,Pavamana Suktam
 9,10,,Pavamana Suktam

@@ -5,7 +5,7 @@
   <title>Rigveda Sukta Connections (Filtered)</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-    body { font-family: sans-serif; background: #f8f8f8; margin: 0; padding: 10px; }
+    body { font-family: serif; background: #f8f8f8; margin: 0; padding: 10px; text-align: center;}
     header { text-align: center; padding: 10px; background: #e0e0e0; }
     .dropdown-container { text-align: center; margin: 10px; }
     select { margin: 0 10px; padding: 5px; }
@@ -17,12 +17,26 @@
   <header>
     <h1>Rigveda Sukta Connections Visualization</h1>
   </header>
+  <hr>
+  <div id="about" align="left">
+  <p> <b>Important: This page requires an internet connection in order to load d3.js, else the drop downs won't populate.</b> </p>
+  <p >This page visualizes relationships between Rigveda suktas across mandalas. 
+  One sukta is related to another if there are common words that occur in the mantras. 
+  Mantra connections are described in the <a href="Rigvedamap5.html">mantra connections</a> description.
+  <br>
+  This page is a work in progress, so connections between suktas are not complete.
+  <br>
+  How to use: Use the dropdowns so select the mandala and sukta and the visualization will auto update.
+  </p>
+</div>
+
   <div class="dropdown-container">
     <label for="mandalaSelect">Mandala:</label>
     <select id="mandalaSelect"></select>
     <label for="suktaSelect">Sukta:</label>
     <select id="suktaSelect"></select>
   </div>
+  <hr>
   <div class="description-box" id="suktaDescription">Select a sukta to view connections.</div>
   <svg id="suktaGraph" width="960" height="600"></svg>
 
