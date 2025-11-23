@@ -1,12 +1,68 @@
 <html>
 	<head>
+	    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #D6EEEE; /* Light color for even rows */
+        }
+
+        tr:nth-child(odd) {
+            background-color: #FFFFDD; /* White color for odd rows */
+        }
+    </style>
+
 	</head>
 	<body>
-	<!-- <a href="Rigvedamap3.html">Rigveda Sukta Navigator</a> -->
-	<h1>Ananth Narayan's personal projects page</h1>
-	<ul>
-	<li><a href="RigvedaGraph/Rigvedamap5.html">Rigveda Mantra Connections Visualizer</a></li>
-	<li><a href="RigvedaGraph/sukta.html">Rigveda Sukta Connections Visualizer</a></li>
-	</ul>
+	
+	<!DOCTYPE html>
+	<h1> Ananth Narayan's personal projects.</h1>
+    <p>
+	This page links to a few projects related to understanding the Rigveda. 
+	</p>
+	<table>
+		<tr>
+			<th>Project</th>
+			<th>Description</th>
+			<th>Status</th>
+		</tr>
+
+		<tr>
+			<td><a href="RigvedaGraph/sukta.html">Rigveda Sukta Connections Visualizer</a></td>
+			<td>This project visualizes the relationship between various various suktas across
+			the Rigveda. For example, a sukta in the 1st mandala could be relate to one in the 9th
+			For this relationship, we consider the similarity of text between the mantras which constitute
+			the sukta.</td>
+			<td>WIP</td>
+		</tr>
+		<tr>
+			<td><a href="RigvedaGraph/Rigvedamap5.html">Rigveda Mantra Connections Visualizer</a></td>
+			<td>This project visualizes the relationship between various various mantras - a finer
+			grained version of the Sukta Visualization project.</td>
+			<td>WIP</td>
+		</tr>
+		<tr>
+			<td><a href="Devata/gpt_devata3.html">Devata-Sukta mapper</a></td>
+			<td>This project allows you to see which devatas are refered to in which suktas.</td>
+			<td>WIP</td>
+		</tr>
+		<tr>
+			<td><a href="Chandas/gpt_chandas3.html">Chandas-Sukta mapper</a></td>
+			<td>Similar to the devatas project, this project maps chandas to the suktas.</td>
+			<td>WIP</td>
+		</tr>
+	</table>
+
+
+	<hr>
+	<footer> &copy; Ananth Narayan S - 2025. Personal use only. </footer>
 	</body>
 </html>

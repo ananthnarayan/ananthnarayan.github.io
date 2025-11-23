@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rigveda Devata ↔ Sukta Explorer</title>
+
+<!-- PapaParse for robust CSV parsing -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root{
+    --bg:#f6f5f2;
+    --panel:#ffffff;
+    --muted:#666;
+    --accent:#2b6cb0;
+    --border:#e6e2da;
+  }
+
+  body{
+    font-family: "Segoe UI", Roboto, Noto Sans, Arial, sans-serif;
+    margin:0;
+    background:var(--bg);
+    color:#222;
+  }
+
+  header{
+    background:linear-gradient(90deg,#f2efe9,#f9f7f3);
+    padding:18px 20px;
+    border-bottom:1px solid var(--border);
+  }
+  header h1{ margin:0; font-size:20px; }
+
+  .controls{
+    margin-top:12px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .controls label{ font-size:14px; color:#333; }
+  .controls input[type="text"]{
+    padding:8px 10px; border-radius:6px; border:1px solid var(--border); font-size:14px; min-width:180px;
+  }
+  .controls button{
+    padding:8px 10px; border-radius:6px; border:1px solid var(--border); background:#fff; cursor:pointer;
+    font-size:14px;
+  }
+  #status { color:var(--muted); font-size:13px; margin-left:6px; }
+
+  .wrap{ display:flex; gap:18px; padding:18px; box-sizing:border-box; }
+  .left, .right{ background:var(--panel); border-radius:8px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.05); overflow:auto; }
+  .left { width:34%; min-width:280px; max-height: calc(100vh - 170px); }
+  .right { flex:1; max-height: calc(100vh - 170px); }
+
+  .search { margin-bottom:12px; }
+  .search input{ width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--border); font-size:14px; }
+
+  .devata-item { padding:8px; border-radius:6px; display:flex; justify-content:space-between; gap:10px; align-items:center; cursor:pointer; }
+  .devata-item:hover { background:#fbf9f6; }
+  .devata-name .eng{ font-weight:600; }
+  .devata-name .dev{ font-size:15px; color:#3a3a3a; margin-top:2px; }
+  .devata-meta{ font-size:13px; color:var(--muted); }
+  .highlight { background:#fff4e0; }
+
+  .desc-box{ background:#fbfbfb; border:1px dashed #eee; padding:12px; border-radius:6px; margin-bottom:12px; color:#333; }
+  .sukta-list{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .sukta-pill{
+  padding:6px 8px;
+  border-radius:6px;
+  font-weight:600;
+  cursor:pointer;
+  border:2px solid transparent;
+  background:#eef6ff;
+  color:var(--accent);
+  transition:0.15s ease;
+ }
+
+ .sukta-pill:hover{
+  transform:scale(1.05);
+  box-shadow:0px 2px 6px rgba(0,0,0,0.1);
+ }
+
+  .empty{ color:var(--muted); padding:10px; text-align:center; }
+
+  @media (max-width:900px){
+    .wrap { flex-direction:column; }
+    .left { width:100%; max-height: 40vh; }
+    .right { max-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Rigveda Devata ↔ Sukta Explorer</h1>
+
+  <div class="controls" style="align-items:center;">
+    <label><strong>Search Sukta</strong></label>
+    <input id="suktaSearch" type="text" placeholder="Enter mandala.sukta (e.g., 1.1)" />
+    <button id="suktaGo">Search</button>
+
+    <div style="flex:1"></div>
+    <div id="status">Loading CSV…</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT -->
+  <aside class="left">
+    <div class="search">
+      <input id="devataFilter" type="text" placeholder="Search devatas (English or Devanagari)" />
+    </div>
+
+    <div id="devataList">
+      <div class="empty">Loading data…</div>
+    </div>
+  </aside>
+
+  <!-- RIGHT -->
+  <main class="right">
+    <div class="desc-box">
+      <strong>Usage</strong><br>
+      • Click a devata in the left pane to view description and the list of suktas where it is mentioned.<br>
+      • Or search a sukta (e.g., <code>1.1</code>) above to list all devatas that occur in that sukta. Click a sukta-pill to jump between views.
+    </div>
+
+    <div id="devataDetails" style="display:none;">
+      <h2 id="devataTitle" style="margin-top:0;"></h2>
+      <div id="devataDev" style="font-size:20px; margin-bottom:6px;"></div>
+      <div id="devataDesc" style="margin-bottom:12px;"></div>
+
+      <h3>Suktas</h3>
+      <div id="devataSuktas" class="sukta-list"></div>
+    </div>
+
+    <div id="suktaResults" style="display:none;">
+      <h2>Sukta Search Results</h2>
+      <div id="suktaResultList"></div>
+    </div>
+  </main>
+</div>
+
+<footer style="text-align:center; padding:10px; color:#777;">
+  Make sure your CSV is named <code>chandas_suktas.csv</code> and placed next to this <code>index.html</code> in your GitHub Pages repository.
+</footer>
+
+<script>
+/* -------------------------
+   Utilities & Data storage
+   ------------------------- */
+let devatas = [];       // array of {eng, dev, desc, suktas:[]}
+let suktaIndex = {};    // map sukta -> array of devata objects
+
+// 10-mandala colour palette (customisable)
+const mandalaColors = {
+  1:  "#e41a1c",
+  2:  "#377eb8",
+  3:  "#4daf4a",
+  4:  "#984ea3",
+  5:  "#ff7f00",
+  6:  "#ffff33",
+  7:  "#a65628",
+  8:  "#f781bf",
+  9:  "#999999",
+  10: "#66c2a5"
+};
+
+// Extract mandala number from "X.Y"
+function getMandala(sukta) {
+  if (!sukta) return null;
+  const parts = sukta.split(".");
+  const m = parseInt(parts[0]);
+  return isNaN(m) ? null : m;
+}
+
+
+function normalizeSukta(s){ return String(s||"").trim(); }
+
+/* Create sortable key for '1.10' etc */
+function suktakeyToSortKey(s){
+  const parts = String(s||"").split('.').map(p => Number(p) || 0);
+  return parts.map(n => String(n).padStart(4,'0')).join('.');
+}
+
+/* -------------------------
+   CSV Loading (robust)
+   ------------------------- */
+
+/*
+  Behavior:
+  - Uses PapaParse to parse devata_suktas.csv (relative URL).
+  - Accepts CSVs with or without header.
+  - The file format expected:
+    col0 = DevataEnglish
+    col1 = DevataDevanagari
+    col2 = Description
+    col3+ = any number of sukta entries (variable per row)
+*/
+
+function processParsedCSV(parsed) {
+  // parsed.data is an array of rows (arrays)
+  const rows = parsed.data.filter(r => {
+    // skip empty rows
+    if(!r) return false;
+    if(Array.isArray(r)) return r.some(c => String(c||'').trim() !== '');
+    return Object.values(r).some(c => String(c||'').trim() !== '');
+  });
+
+  if(rows.length === 0){
+    document.getElementById('status').textContent = 'CSV empty or invalid';
+    return;
+  }
+
+  // Detect header if first row contains typical words
+  let hasHeader = false;
+  const firstRow = rows[0];
+  if(Array.isArray(firstRow)){
+    const lower = firstRow.map(c => String(c||'').toLowerCase());
+    if(lower.some(h => h.includes('devata') || h.includes('devataname') || h.includes('description'))) {
+      hasHeader = true;
+    }
+  } else {
+    // If Papa returned objects (rare with our call), treat as header-present
+    hasHeader = true;
+  }
+
+  // Build objects: always treat first 3 columns as name/dev/description; col4+ as suktas
+  const bodyRows = hasHeader ? rows.slice(1) : rows;
+
+  const objects = bodyRows.map(arr => {
+    // Ensure arr is array
+    const a = Array.isArray(arr) ? arr : Object.values(arr);
+
+    const eng = String(a[0]||'').trim();
+    const dev = String(a[1]||'').trim();
+    const desc = String(a[2]||'').trim();
+
+    const suktas = [];
+    for(let i=3;i<a.length;i++){
+      const v = String(a[i]||'').trim();
+      if(v) suktas.push(v);
+    }
+
+    return {eng, dev, desc, suktas};
+  });
+
+  buildIndexFromObjects(objects);
+}
+
+/* Fetch the CSV and parse */
+function autoLoadCSV(){
+  const url = 'chandas_suktas.csv';
+  document.getElementById('status').textContent = 'Loading ' + url + ' ...';
+
+  fetch(url).then(resp => {
+    if(!resp.ok) throw new Error('CSV not found');
+    return resp.text();
+  }).then(txt => {
+    const parsed = Papa.parse(txt, {skipEmptyLines:true});
+    processParsedCSV(parsed);
+  }).catch(err => {
+    console.error(err);
+    document.getElementById('status').textContent = 'Error: chandas_suktas.csv not found';
+    // render a helpful empty state
+    document.getElementById('devataList').innerHTML = '<div class="empty">CSV not found. Place chandas_suktas.csv next to index.html</div>';
+  });
+}
+
+/* -------------------------
+   Build Index from flexible objects
+   objects: [{eng, dev, desc, suktas:[]}, ...]
+   ------------------------- */
+function buildIndexFromObjects(objects){
+  devatas = [];
+  suktaIndex = {};
+
+  objects.forEach(o => {
+    const eng = (o.eng || '').trim();
+    const dev = (o.dev || '').trim();
+    const desc = (o.desc || '').trim();
+    const rawSuktas = Array.isArray(o.suktas) ? o.suktas : [];
+
+    if(!eng && !dev) return; // skip blank rows
+
+    // normalize and dedupe suktas
+    const normalized = Array.from(new Set(rawSuktas.map(s => normalizeSukta(s)).filter(s => s.length>0)));
+
+    // sort suktas numerically using key
+    normalized.sort((a,b) => {
+      const ka = suktakeyToSortKey(a);
+      const kb = suktakeyToSortKey(b);
+      return ka < kb ? -1 : (ka > kb ? 1 : 0);
+    });
+
+    const obj = {eng, dev, desc, suktas: normalized};
+    devatas.push(obj);
+
+    normalized.forEach(s => {
+      if(!suktaIndex[s]) suktaIndex[s] = [];
+      suktaIndex[s].push(obj);
+    });
+  });
+
+  // sort devatas by English name (fallback to Devanagari if English missing)
+  devatas.sort((A,B) => {
+    const a = (A.eng || A.dev || '').toLowerCase();
+    const b = (B.eng || B.dev || '').toLowerCase();
+    return a < b ? -1 : (a > b ? 1 : 0);
+  });
+
+  // render UI
+  renderDevataList();
+  document.getElementById('status').textContent = 'Loaded ' + devatas.length + ' devatas, ' + Object.keys(suktaIndex).length + ' suktas';
+}
+
+/* -------------------------
+   UI rendering & interactions
+   ------------------------- */
+
+const devataListEl = document.getElementById('devataList');
+let currentHighlightedRow = null;
+
+function renderDevataList(filter=''){
+  filter = String(filter||'').trim().toLowerCase();
+  devataListEl.innerHTML = '';
+
+  const matches = devatas.filter(d => {
+    if(!filter) return true;
+    return (d.eng && d.eng.toLowerCase().includes(filter)) || (d.dev && d.dev.includes(filter));
+  });
+
+  if(matches.length === 0){
+    devataListEl.innerHTML = '<div class="empty">No devata matches</div>';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  matches.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'devata-item';
+
+    const left = document.createElement('div');
+    left.className = 'devata-name';
+    left.innerHTML = '<div class="eng">' + escapeHtml(d.eng || '(no name)') + '</div>'
+                   + '<div class="dev">' + escapeHtml(d.dev || '') + '</div>';
+
+    const right = document.createElement('div');
+    right.className = 'devata-meta';
+    right.textContent = d.suktas.length + ' suktas';
+
+    row.appendChild(left); row.appendChild(right);
+
+    row.addEventListener('click', () => {
+      if(currentHighlightedRow) currentHighlightedRow.classList.remove('highlight');
+      row.classList.add('highlight'); currentHighlightedRow = row;
+      showDevataDetails(d);
+    });
+
+    frag.appendChild(row);
+  });
+
+  devataListEl.appendChild(frag);
+}
+
+/* show right pane details for a devata */
+function showDevataDetails(d){
+  document.getElementById('suktaResults').style.display = 'none';
+  const details = document.getElementById('devataDetails');
+  details.style.display = 'block';
+
+  document.getElementById('devataTitle').textContent = d.eng || '(no name)';
+  document.getElementById('devataDev').textContent = d.dev || '';
+  document.getElementById('devataDesc').textContent = d.desc || 'No description available';
+
+  const container = document.getElementById('devataSuktas');
+  container.innerHTML = '';
+
+  if(!d.suktas || d.suktas.length === 0){
+    container.innerHTML = '<div class="empty">No suktas listed for this devata.</div>';
+    return;
+  }
+
+  d.suktas.forEach(s => {
+    const pill = document.createElement('div');
+    pill.className = 'sukta-pill';
+    pill.textContent = s;
+	
+	const mandala = getMandala(s);
+    if (mandalaColors[mandala]) {
+      pill.style.background = mandalaColors[mandala] + "22";   // low-opacity fill
+      pill.style.borderColor = mandalaColors[mandala];
+      pill.style.color = mandalaColors[mandala];
+    }
+	
+    pill.addEventListener('click', () => {
+      document.getElementById('suktaSearch').value = s;
+      runSuktaSearch();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    container.appendChild(pill);
+  });
+}
+
+/* run search by sukta and list devatas */
+function runSuktaSearch(){
+  const q = normalizeSukta(document.getElementById('suktaSearch').value);
+  const sr = document.getElementById('suktaResults');
+  const listBox = document.getElementById('suktaResultList');
+  sr.style.display = 'block';
+  listBox.innerHTML = '';
+
+  if(!q){
+    listBox.innerHTML = '<div class="empty">Enter mandala.sukta (e.g., 1.1)</div>';
+    return;
+  }
+
+  const arr = suktaIndex[q] || [];
+  if(arr.length === 0){
+    listBox.innerHTML = '<div class="empty">No devatas found for ' + escapeHtml(q) + '</div>';
+    return;
+  }
+
+  const header = document.createElement('div');
+  //header.innerHTML = '<strong>' + arr.length + '</strong> devata(s) found in <strong>' + escapeHtml(q) + '</strong>';
+  const mandala = getMandala(q);
+  const color = mandalaColors[mandala] || "#333";
+
+  header.innerHTML = `
+  <strong style="color:${color}">${arr.length}</strong> devata(s) found in 
+  <strong style="color:${color}">${escapeHtml(q)}</strong>`;
+  
+  header.style.marginBottom = '10px';
+  listBox.appendChild(header);
+
+  // sort alphabetically
+  arr.slice().sort((a,b) => (a.eng||a.dev||'').localeCompare(b.eng||b.dev||'')).forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'devata-item';
+    row.innerHTML = '<div class="devata-name"><div class="eng">' + escapeHtml(d.eng) + '</div><div class="dev">' + escapeHtml(d.dev) + '</div></div>';
+    row.addEventListener('click', () => {
+      document.getElementById('devataFilter').value = d.eng;
+      renderDevataList(d.eng);
+      // highlight first matching element in left list
+      const first = devataListEl.querySelector('.devata-item');
+      if(first){
+        if(currentHighlightedRow) currentHighlightedRow.classList.remove('highlight');
+        first.classList.add('highlight'); currentHighlightedRow = first;
+      }
+      showDevataDetails(d);
+    });
+    listBox.appendChild(row);
+  });
+}
+
+/* small helper to escape HTML */
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* event wiring */
+document.getElementById('devataFilter').addEventListener('input', e => renderDevataList(e.target.value));
+document.getElementById('suktaGo').addEventListener('click', runSuktaSearch);
+document.getElementById('suktaSearch').addEventListener('keydown', e => { if(e.key === 'Enter') runSuktaSearch(); });
+
+/* Auto-load CSV on page open */
+autoLoadCSV();
+
+</script>
+</body>
+</html>

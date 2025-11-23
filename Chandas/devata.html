@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rigveda Devata Explorer</title>
+    <style>
+        :root {
+            --primary: #b9562a; /* Saffron tone */
+            --bg: #fcfbf9;
+            --card-bg: #ffffff;
+            --text: #333;
+            --border: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        h1 { text-align: center; color: var(--primary); }
+        
+        /* Search Box Styling */
+        .search-container {
+            margin-bottom: 30px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+
+        input#searchBox {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            outline: none;
+        }
+
+        .hint {
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Results Styling */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        .card:hover { transform: translateY(-2px); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .devata-name { font-size: 1.4em; font-weight: bold; color: var(--primary); }
+        .devata-sanskrit { font-size: 1.5em; color: #555; }
+        .description { font-style: italic; color: #666; margin-bottom: 15px; }
+
+        .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag {
+            background-color: #f0f0f0;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .tag:hover { background-color: var(--primary); color: white; }
+
+        /* Sukta Mode Specifics */
+        .sukta-result-header { font-size: 1.2em; margin-bottom: 10px; }
+        .sukta-highlight { background-color: #fff3cd; padding: 0 4px; }
+    </style>
+</head>
+<body>
+
+    <h1>Rigveda Devata Mapper</h1>
+
+    <div class="search-container">
+        <input type="text" id="searchBox" placeholder="Search by Name (e.g. Agni) or Sukta (e.g. 1.1)...">
+        <div class="hint">Type a number (Mandala.Sukta) to find Devatas, or type text to find Suktas.</div>
+    </div>
+
+    <div id="resultsArea"></div>
+
+<script>
+// =================================================================
+// 1. YOUR DATA GOES HERE
+// Paste your CSV content inside the backticks below.
+// Format: English Name, Devanagari, Description, Sukta1, Sukta2...
+// =================================================================
+const rawCSV = `
+Agni,अग्नि,The fire god and messenger to the gods,1.1,1.12,1.26,2.1
+Indra,इन्द्र,King of Svarga and god of lightning,1.4,1.32,2.12,1.1
+Vayu,वायु,Lord of the winds,1.2,1.134,4.46,1.1
+Varuna,वरुण,Guardian of cosmic order (Rta),1.25,7.86,1.2
+`;
+// =================================================================
+
+// Global Indices
+let devataIndex = []; // Stores objects: { name, sanskrit, desc, suktas: [] }
+let suktaIndex = {};  // Stores map: "1.1" -> ["Agni", "Indra"]
+
+// 2. Initialization Logic
+function init() {
+    parseCSV(rawCSV.trim());
+    document.getElementById('searchBox').addEventListener('input', handleSearch);
+    renderResults(devataIndex); // Show all on load
+}
+
+// 3. CSV Parser & Index Builder
+function parseCSV(csvText) {
+    const lines = csvText.split('\n');
+    
+    lines.forEach(line => {
+        if (!line.trim()) return;
+        
+        // Simple split by comma (Assumes no commas inside description text)
+        // If your descriptions have commas, we need a regex splitter.
+        const parts = line.split(',').map(s => s.trim());
+        
+        if (parts.length < 4) return; // Skip malformed lines
+
+        const devataObj = {
+            name: parts[0],
+            sanskrit: parts[1],
+            desc: parts[2],
+            suktas: parts.slice(3).filter(s => s) // Take everything from col 4 onwards
+        };
+
+        // Add to Devata Index
+        devataIndex.push(devataObj);
+
+        // Add to Inverted Sukta Index
+        devataObj.suktas.forEach(sukta => {
+            if (!suktaIndex[sukta]) {
+                suktaIndex[sukta] = [];
+            }
+            suktaIndex[sukta].push({
+                name: devataObj.name,
+                sanskrit: devataObj.sanskrit,
+                desc: devataObj.desc
+            });
+        });
+    });
+}
+
+// 4. Search Logic
+function handleSearch(e) {
+    const query = e.target.value.trim().toLowerCase();
+    const resultsArea = document.getElementById('resultsArea');
+    resultsArea.innerHTML = '';
+
+    if (!query) {
+        renderResults(devataIndex);
+        return;
+    }
+
+    // REGEX: Detect if input is Mandala.Sukta pattern (e.g., "1.1", "10.129")
+    const isSuktaSearch = /^\d+(\.\d+)?$/.test(query);
+
+    if (isSuktaSearch) {
+        renderSuktaMode(query);
+    } else {
+        renderDevataMode(query);
+    }
+}
+
+// 5. Rendering Logic
+
+function renderDevataMode(query) {
+    const filtered = devataIndex.filter(d => 
+        d.name.toLowerCase().includes(query) || 
+        d.sanskrit.includes(query)
+    );
+    renderResults(filtered);
+}
+
+function renderSuktaMode(query) {
+    // We allow partial matches for sukta numbers (e.g. "1." might show 1.1, 1.2)
+    // But exact match is prioritized for the inverted index.
+    const resultsArea = document.getElementById('resultsArea');
+    
+    // Find all suktas starting with the query
+    const matchingSuktas = Object.keys(suktaIndex).filter(k => k.startsWith(query));
+    
+    if (matchingSuktas.length === 0) {
+        resultsArea.innerHTML = '<p style="text-align:center">No records found for this Sukta.</p>';
+        return;
+    }
+
+    // Sort naturally (1.2 comes before 1.10)
+    matchingSuktas.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    let html = '';
+    matchingSuktas.forEach(suktaNum => {
+        const devataList = suktaIndex[suktaNum];
+        
+        let devataCards = devataList.map(d => `
+            <div style="margin-left: 15px; padding: 5px 0; border-bottom: 1px dashed #eee;">
+                <strong>${d.name} (${d.sanskrit})</strong> - ${d.desc}
+            </div>
+        `).join('');
+
+        html += `
+            <div class="card">
+                <div class="card-header">
+                    <span class="devata-name">Sukta ${suktaNum}</span>
+                </div>
+                <div>
+                    <strong>Devatas referenced:</strong>
+                    ${devataCards}
+                </div>
+            </div>
+        `;
+    });
+    
+    resultsArea.innerHTML = html;
+}
+
+function renderResults(data) {
+    const resultsArea = document.getElementById('resultsArea');
+    if (data.length === 0) {
+        resultsArea.innerHTML = '<p style="text-align:center">No Devatas found.</p>';
+        return;
+    }
+
+    const html = data.map(item => `
+        <div class="card">
+            <div class="card-header">
+                <span class="devata-name">${item.name}</span>
+                <span class="devata-sanskrit">${item.sanskrit}</span>
+            </div>
+            <div class="description">${item.desc}</div>
+            <div>
+                <strong>Referenced in Suktas:</strong>
+                <div class="tags">
+                    ${item.suktas.map(s => `<span class="tag" onclick="setSearch('${s}')">${s}</span>`).join('')}
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    resultsArea.innerHTML = html;
+}
+
+// Helper to click a sukta tag and search for it
+window.setSearch = function(val) {
+    const box = document.getElementById('searchBox');
+    box.value = val;
+    box.dispatchEvent(new Event('input'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Run
+init();
+
+</script>
+</body>
+</html>
