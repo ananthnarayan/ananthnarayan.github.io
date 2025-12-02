@@ -94,7 +94,7 @@
 
 <header>
   <h1>Rigveda Devata ↔ Sukta Explorer</h1>
-
+  <p>This page allows you to search Rig veda suktas based on the devatas. Reference is Rigveda Mantra Samhita, SAKSHI Trust.</p>
   <div class="controls" style="align-items:center;">
     <label><strong>Search Sukta</strong></label>
     <input id="suktaSearch" type="text" placeholder="Enter mandala.sukta (e.g., 1.1)" />
@@ -250,7 +250,9 @@ function processParsedCSV(parsed) {
 
 /* Fetch the CSV and parse */
 function autoLoadCSV(){
-  const url = 'devata_suktas.csv';
+//const csvUrl = "chandas_suktas.csv?v=" + Date.now();
+
+  const url = "devata_suktas.csv?v=" + Date.now();
   document.getElementById('status').textContent = 'Loading ' + url + ' ...';
 
   fetch(url).then(resp => {

@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Chandas ↔ Sukta Explorer — Final (Strict Header)</title>
+
+<!-- PapaParse for strict CSV tokenization -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root{ --bg:#f6f5f2; --panel:#ffffff; --muted:#666; --accent:#2b6cb0; --border:#e6e2da; }
+  body{ font-family: "Segoe UI", Roboto, Noto Sans, Arial, sans-serif; margin:0; background:var(--bg); color:#222; }
+  header{ background:linear-gradient(90deg,#f2efe9,#f9f7f3); padding:18px 20px; border-bottom:1px solid var(--border); }
+  header h1{ margin:0; font-size:20px; }
+  .controls{ margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .controls input{ padding:8px 10px; border-radius:6px; border:1px solid var(--border); font-size:14px; min-width:180px; }
+  .controls button{ padding:8px 10px; border-radius:6px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:14px; }
+  #status { color:var(--muted); font-size:13px; margin-left:6px; }
+  .wrap{ display:flex; gap:18px; padding:18px; box-sizing:border-box; }
+  .left, .right{ background:var(--panel); border-radius:8px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.05); overflow:auto; }
+  .left { width:34%; min-width:280px; max-height: calc(100vh - 170px); }
+  .right { flex:1; max-height: calc(100vh - 170px); }
+  .search input{ width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--border); font-size:14px; }
+  .chandas-item{ padding:8px; border-radius:6px; display:flex; justify-content:space-between; gap:10px; align-items:center; cursor:pointer; }
+  .chandas-item:hover{ background:#fbf9f6; }
+  .chandas-name .eng{ font-weight:600; }
+  .chandas-name .dev{ font-size:15px; color:#3a3a3a; margin-top:2px; }
+  .chandas-meta{ font-size:13px; color:var(--muted); }
+  .highlight { background:#fff4e0; }
+  .desc-box{ background:#fbfbfb; border:1px dashed #eee; padding:12px; border-radius:6px; margin-bottom:12px; color:#333; }
+  .sukta-list{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .sukta-pill{ padding:6px 8px; border-radius:6px; font-weight:600; cursor:pointer; border:2px solid transparent; background:#eef6ff; color:var(--accent); transition:0.15s ease; }
+  .sukta-pill:hover{ transform:scale(1.05); box-shadow:0px 2px 6px rgba(0,0,0,0.1); }
+  .empty{ color:var(--muted); padding:10px; text-align:center; }
+  @media (max-width:900px){
+    .wrap { flex-direction:column; }
+    .left { width:100%; max-height: 40vh; }
+    .right { max-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Chandas ↔ Sukta Explorer</h1>
+  <div class="controls">
+    <label><strong>Search Sukta</strong></label>
+    <input id="suktaSearch" type="text" placeholder="Enter mandala.sukta (e.g., 1.1)" />
+    <button id="suktaGo">Search</button>
+    <div style="flex:1"></div>
+    <div id="status">Loading CSV…</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="left">
+    <div class="search">
+      <input id="chandasFilter" type="text" placeholder="Search chandas or subtype (Eng/Dev)">
+    </div>
+    <div id="chandasList"><div class="empty">Loading…</div></div>
+  </aside>
+
+  <main class="right">
+    <div class="desc-box">
+      <strong>Usage</strong><br>
+      • Click a chandas to view description and associated suktas.<br>
+      • Search a sukta (e.g., <code>1.1</code>) to list chandas in that sukta.
+    </div>
+
+    <div id="chandasDetails" style="display:none;">
+      <h2 id="chandasTitle"></h2>
+      <div id="chandasDev" style="font-size:20px; margin-bottom:6px;"></div>
+      <div id="chandasDesc" style="margin-bottom:12px;"></div>
+      <h3>Suktas</h3>
+      <div id="chandasSuktas" class="sukta-list"></div>
+    </div>
+
+    <div id="suktaResults" style="display:none;">
+      <h2>Sukta Search Results</h2>
+      <div id="suktaResultList"></div>
+    </div>
+  </main>
+</div>
+
+<footer style="text-align:center; padding:10px; color:#777;">
+  Put <code>chandas_suktas.csv</code> next to this HTML when deploying.
+</footer>
+
+<script>
+/* strict CSV: relative path (deploy) */
+//const csvUrl = "chandas_suktas.csv";
+const csvUrl = "chandas_suktas.csv?v=" + Date.now();
+//const csvUrl = "chandas_suktas.csv?nocache=" + Math.random();
+
+/* state */
+let chandas = [];
+let suktaIndex = {};
+
+const mandalaColors = {1:"#e41a1c",2:"#377eb8",3:"#4daf4a",4:"#984ea3",5:"#ff7f00",6:"#ffff33",7:"#a65628",8:"#f781bf",9:"#999999",10:"#66c2a5"};
+
+function getMandala(s){ const p=String(s).split('.'); const n=parseInt(p[0]); return isNaN(n)?null:n; }
+function trim(s){ return String(s||'').trim(); }
+function sukey(s){ return String(s||'').split('.').map(x=>String(Number(x)||0).padStart(4,'0')).join('.'); }
+
+/* ---------- Strict parsing & header detection (STRICT) ---------- */
+function processParsed(parsed){
+  if(!parsed || !Array.isArray(parsed.data)){
+    document.getElementById('status').textContent = 'CSV parse error';
+    return;
+  }
+
+  // only rows with at least one non-empty cell
+  const rows = parsed.data.filter(r => Array.isArray(r) && r.some(c => trim(c) !== ""));
+
+  if(rows.length === 0){
+    document.getElementById('status').textContent = 'CSV empty or invalid';
+    document.getElementById('chandasList').innerHTML = '<div class="empty">CSV empty or invalid</div>';
+    return;
+  }
+
+  // STRICT header tokens (exact spellings)
+  // Include the exact token with space as found in your file:
+  const strictHeaders = [
+    "chandasenglish",
+    "subtypeenglish",
+    "chandasdevanagari",
+    "subtypedevanagari", 
+    "description",
+    "suktalist"
+  ];
+
+  const firstLower = rows[0].map(c => trim(String(c).toLowerCase()));
+
+  // Strict detection: header row exists only if the first row contains ANY of the exact tokens above
+  const hasHeader = firstLower.some(cell => strictHeaders.includes(cell));
+
+  const body = hasHeader ? rows.slice(1) : rows;
+
+  chandas = [];
+  suktaIndex = {};
+
+  body.forEach(row => {
+    const a = row;
+
+    // trim BOM from first cell if present
+    let engCell = String(a[0] || "");
+    if(engCell.charCodeAt(0) === 0xFEFF) engCell = engCell.slice(1);
+
+    const eng = trim(engCell);
+    const subEng = trim(a[1] || "");
+    const dev = trim(a[2] || "");
+    const subDev = trim(a[3] || "");
+    const desc = trim(a[4] || "");
+
+    // suktas from column 5 onwards
+    const suktas = [];
+    for(let i=5;i<a.length;i++){
+      const v = trim(a[i] || "");
+      if(v) suktas.push(v);
+    }
+
+    // if no suktas found but column 5 has a pipe/semicolon-separated list, split it (comma already tokenized)
+    if(suktas.length === 0 && a.length >= 6){
+      const raw5 = trim(a[5] || "");
+      if(raw5 && (raw5.includes('|') || raw5.includes(';'))){
+        raw5.split(/[|;]+/).map(x=>trim(x)).filter(Boolean).forEach(p=>suktas.push(p));
+      } else if(raw5){
+        suktas.push(raw5);
+      }
+    }
+
+    if(eng || dev){
+      const entry = { eng, subEng, dev, subDev, desc, suktas };
+      chandas.push(entry);
+      suktas.forEach(s => {
+        if(!suktaIndex[s]) suktaIndex[s] = [];
+        suktaIndex[s].push(entry);
+      });
+    }
+  });
+
+  chandas.sort((A,B) => (A.eng || A.dev).localeCompare(B.eng || B.dev));
+  renderChandasList();
+  document.getElementById('status').textContent = `Loaded ${chandas.length} chandas, ${Object.keys(suktaIndex).length} suktas`;
+}
+
+/* ---------- UI rendering ---------- */
+const listEl = document.getElementById("chandasList");
+let currentHighlight = null;
+
+function renderChandasList(filter=""){
+  filter = trim(filter).toLowerCase();
+  listEl.innerHTML = "";
+
+  const matches = chandas.filter(c => {
+    if(!filter) return true;
+    return (c.eng && c.eng.toLowerCase().includes(filter)) ||
+           (c.subEng && c.subEng.toLowerCase().includes(filter)) ||
+           (c.dev && c.dev.includes(filter)) ||
+           (c.subDev && c.subDev.includes(filter));
+  });
+
+  if(matches.length === 0){
+    listEl.innerHTML = '<div class="empty">No matches</div>';
+    return;
+  }
+
+  matches.forEach(c => {
+    const row = document.createElement("div");
+    row.className = "chandas-item";
+    row.innerHTML =
+      `<div class="chandas-name">
+         <div class="eng">${c.eng}</div>
+         <div class="dev">${c.dev}</div>
+       </div>
+       <div class="chandas-meta">${c.suktas.length} suktas</div>`;
+
+    row.onclick = () => {
+      if(currentHighlight) currentHighlight.classList.remove("highlight");
+      row.classList.add("highlight"); currentHighlight = row;
+      showChandas(c);
+    };
+
+    listEl.appendChild(row);
+  });
+}
+
+function showChandas(c){
+  document.getElementById("suktaResults").style.display = "none";
+  document.getElementById("chandasDetails").style.display = "block";
+
+  document.getElementById("chandasTitle").textContent =
+    c.eng + (c.subEng ? (" — " + c.subEng) : "");
+
+  document.getElementById("chandasDev").textContent =
+    c.dev + (c.subDev ? (" — " + c.subDev) : "");
+
+  document.getElementById("chandasDesc").textContent =
+    c.desc || "No description available";
+
+  const box = document.getElementById("chandasSuktas");
+  box.innerHTML = "";
+
+  if(!c.suktas || c.suktas.length === 0){
+    box.innerHTML = '<div class="empty">No suktas listed</div>';
+    return;
+  }
+
+  c.suktas.forEach(s => {
+    const pill = document.createElement("div");
+    pill.className = "sukta-pill";
+    pill.textContent = s;
+    const m = getMandala(s);
+    if(mandalaColors[m]){
+      pill.style.background = mandalaColors[m] + "22";
+      pill.style.borderColor = mandalaColors[m];
+      pill.style.color = mandalaColors[m];
+    }
+    pill.onclick = () => {
+      document.getElementById("suktaSearch").value = s;
+      runSuktaSearch();
+      window.scrollTo({ top:0, behavior:"smooth" });
+    };
+    box.appendChild(pill);
+  });
+}
+
+/* ---------- sukta search ---------- */
+function runSuktaSearch(){
+  const q = trim(document.getElementById("suktaSearch").value);
+  const resultsBox = document.getElementById("suktaResults");
+  const listBox = document.getElementById("suktaResultList");
+  resultsBox.style.display = "block";
+  listBox.innerHTML = "";
+
+  if(!q){
+    listBox.innerHTML = '<div class="empty">Enter mandala.sukta (e.g., 1.1)</div>';
+    return;
+  }
+
+  const arr = suktaIndex[q] || [];
+  if(arr.length === 0){
+    listBox.innerHTML = `<div class="empty">No chandas found for ${q}</div>`;
+    return;
+  }
+
+  arr.slice().sort((a,b) => (a.eng || a.dev).localeCompare(b.eng || b.dev)).forEach(c => {
+    const row = document.createElement("div");
+    row.className = "chandas-item";
+    row.innerHTML =
+      `<div class="chandas-name"><div class="eng">${c.eng}</div><div class="dev">${c.dev}</div></div>`;
+    row.onclick = () => {
+      document.getElementById("chandasFilter").value = c.eng;
+      renderChandasList(c.eng);
+      showChandas(c);
+    };
+    listBox.appendChild(row);
+  });
+}
+
+/* ---------- helpers & wiring ---------- */
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+document.getElementById("chandasFilter").addEventListener("input", e => renderChandasList(e.target.value));
+document.getElementById("suktaGo").addEventListener("click", runSuktaSearch);
+document.getElementById("suktaSearch").addEventListener("keydown", e => { if(e.key === "Enter") runSuktaSearch(); });
+
+/* ---------- load CSV (strict comma) ---------- */
+function loadCSV(){
+  document.getElementById('status').textContent = 'Loading ' + csvUrl + ' ...';
+  fetch(csvUrl).then(r => { if(!r.ok) throw new Error('CSV not found'); return r.text(); })
+  .then(txt => {
+    const parsed = Papa.parse(txt, { delimiter: ",", skipEmptyLines:false });
+    processParsed(parsed);
+  })
+  .catch(err => {
+    console.error(err);
+    document.getElementById('status').textContent = 'Error: ' + err.message;
+    document.getElementById('chandasList').innerHTML = '<div class="empty">CSV not found or could not be loaded.</div>';
+  });
+}
+
+loadCSV();
+
+</script>
+</body>
+</html>
