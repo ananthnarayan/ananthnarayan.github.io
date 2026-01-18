@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rigveda Devata ↔ Sukta Explorer</title>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root{
+    --bg:#f6f5f2;
+    --panel:#ffffff;
+    --muted:#666;
+    --accent:#2b6cb0;
+    --border:#e6e2da;
+  }
+  body{
+    font-family:"Segoe UI",Roboto,Noto Sans,Arial,sans-serif;
+    margin:0;background:var(--bg);color:#222;
+  }
+  header{
+    background:linear-gradient(90deg,#f2efe9,#f9f7f3);
+    padding:18px 20px;border-bottom:1px solid var(--border);
+  }
+  header h1{margin:0;font-size:20px;}
+  .controls{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .controls input{padding:8px 10px;border-radius:6px;border:1px solid var(--border);}
+  .controls button{padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;}
+  #status{color:var(--muted);font-size:13px;margin-left:6px;}
+
+  .wrap{display:flex;gap:18px;padding:18px;}
+  .left,.right{background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow:auto;}
+  .left{width:34%;min-width:280px;max-height:calc(100vh - 170px);}
+  .right{flex:1;max-height:calc(100vh - 170px);}
+
+  .search input{width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);}
+  .devata-item{padding:8px;border-radius:6px;display:flex;justify-content:space-between;cursor:pointer;}
+  .devata-item:hover{background:#fbf9f6;}
+  .highlight{background:#fff4e0;}
+  .devata-name .eng{font-weight:600;}
+  .devata-meta{font-size:13px;color:var(--muted);}
+
+  .sukta-pill{
+    padding:6px 8px;border-radius:6px;font-weight:600;
+    cursor:pointer;border:2px solid transparent;
+    background:#eef6ff;transition:0.15s;
+  }
+  .sukta-pill:hover{transform:scale(1.05);}
+  .empty{color:var(--muted);padding:10px;text-align:center;}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Rigveda Devata ↔ Sukta Explorer</h1>
+  <p>This page allows you to search Rig veda suktas based on the devatas. Reference is Rigveda Mantra Samhita, SAKSHI Trust.</p>
+  <div class="controls">
+    <label><strong>Search Sukta</strong></label>
+    <input id="suktaSearch" type="text" placeholder="Enter mandala.sukta (e.g., 1.10)" />
+    <button id="suktaGo">Search</button>
+    <div style="flex:1"></div>
+    <div id="status">Loading CSV…</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="left">
+    <div class="search">
+      <input id="devataFilter" type="text" placeholder="Search devatas (English or Devanagari)" />
+    </div>
+    <div id="devataList"><div class="empty">Loading data…</div></div>
+  </aside>
+
+  <main class="right">
+    <div class="desc-box">
+      <strong>Usage</strong><br>
+      • Click a devata in the left pane to view description and the list of suktas where it is mentioned.<br>
+      • Or search a sukta (e.g., <code>1.10</code>) above to list all devatas that occur in that sukta.
+    </div>
+
+    <div id="devataDetails" style="display:none;">
+      <h2 id="devataTitle"></h2>
+      <div id="devataDev" style="font-size:20px;"></div>
+      <div id="devataDesc"></div>
+      <h3>Suktas</h3>
+      <div id="devataSuktas"></div>
+    </div>
+
+    <div id="suktaResults" style="display:none;">
+      <h2>Sukta Search Results</h2>
+      <div id="suktaResultList"></div>
+    </div>
+  </main>
+</div>
+
+<footer style="text-align:center;padding:10px;color:#777;">
+  Make sure your CSV is named <code>devata_suktas.csv</code> and placed next to this file.
+</footer>
+
+<script>
+let devatas=[], suktaIndex={};
+
+const mandalaColors={1:"#e41a1c",2:"#377eb8",3:"#4daf4a",4:"#984ea3",5:"#ff7f00",6:"#ffff33",7:"#a65628",8:"#f781bf",9:"#999999",10:"#66c2a5"};
+
+const toDisplay = s => s.replace(/_/g,'.');
+const toInternal = s => s.replace(/\./g,'_');
+const normalize = s => String(s||"").trim();
+
+function getMandala(s){
+  const p=s.split('_');
+  const m=parseInt(p[0]);
+  return isNaN(m)?null:m;
+}
+
+function suktakeyToSortKey(s){
+  return s.split('_').map(n=>String(parseInt(n)||0).padStart(4,'0')).join('.');
+}
+
+function autoLoadCSV(){
+  fetch("devata_suktas.csv?v="+Date.now())
+    .then(r=>r.text())
+    .then(t=>Papa.parse(t,{skipEmptyLines:true}))
+    .then(p=>processParsedCSV(p))
+    .catch(()=>document.getElementById("status").textContent="CSV not found");
+}
+
+function processParsedCSV(parsed){
+  const rows=parsed.data.slice(1);
+  rows.forEach(r=>{
+    const o={eng:r[0],dev:r[1],desc:r[2],suktas:r.slice(3).map(normalize)};
+    devatas.push(o);
+    o.suktas.forEach(s=>{
+      if(!suktaIndex[s]) suktaIndex[s]=[];
+      suktaIndex[s].push(o);
+    });
+  });
+  renderDevataList();
+  document.getElementById("status").textContent=`Loaded ${devatas.length} devatas`;
+}
+
+const devataListEl=document.getElementById("devataList");
+let currentHighlightedRow=null;
+
+function renderDevataList(filter=''){
+  devataListEl.innerHTML='';
+  devatas.filter(d=>!filter||d.eng.toLowerCase().includes(filter))
+    .forEach(d=>{
+      const row=document.createElement("div");
+      row.className="devata-item";
+      row.innerHTML=`<div class="devata-name"><div class="eng">${d.eng}</div><div>${d.dev}</div></div><div class="devata-meta">${d.suktas.length}</div>`;
+      row.onclick=()=>showDevataDetails(d,row);
+      devataListEl.appendChild(row);
+    });
+}
+
+function showDevataDetails(d,row){
+  if(currentHighlightedRow) currentHighlightedRow.classList.remove("highlight");
+  row.classList.add("highlight"); currentHighlightedRow=row;
+
+  devataTitle.textContent=d.eng;
+  devataDev.textContent=d.dev;
+  devataDesc.textContent=d.desc||"";
+  const c=document.getElementById("devataSuktas");
+  c.innerHTML="";
+  d.suktas.sort((a,b)=>suktakeyToSortKey(a).localeCompare(suktakeyToSortKey(b))).forEach(s=>{
+    const p=document.createElement("div");
+    p.className="sukta-pill";
+    p.textContent=toDisplay(s);
+    const m=getMandala(s);
+    if(mandalaColors[m]){
+      p.style.color=mandalaColors[m];
+      p.style.borderColor=mandalaColors[m];
+      p.style.background=mandalaColors[m]+"22";
+    }
+    p.onclick=()=>{suktaSearch.value=toDisplay(s);runSuktaSearch();}
+    c.appendChild(p);
+  });
+}
+
+function runSuktaSearch(){
+  const q=toInternal(suktaSearch.value);
+  const list=document.getElementById("suktaResultList");
+  document.getElementById("suktaResults").style.display="block";
+  list.innerHTML="";
+  const arr=suktaIndex[q]||[];
+  if(arr.length===0){
+    list.innerHTML=`<div class="empty">No devatas found for ${toDisplay(q)}</div>`;
+    return;
+  }
+  const m=getMandala(q);
+  const color=mandalaColors[m]||"#333";
+  list.innerHTML=`<div style="margin-bottom:10px;"><strong style="color:${color}">${arr.length}</strong> devata(s) found in <strong style="color:${color}">${toDisplay(q)}</strong></div>`;
+  arr.forEach(d=>{
+    const r=document.createElement("div");
+    r.className="devata-item";
+    r.innerHTML=`<div class="devata-name"><div class="eng">${d.eng}</div><div>${d.dev}</div></div>`;
+    r.onclick=()=>showDevataDetails(d,devataListEl.children[devatas.indexOf(d)]);
+    list.appendChild(r);
+  });
+}
+
+devataFilter.oninput=e=>renderDevataList(e.target.value.toLowerCase());
+suktaGo.onclick=runSuktaSearch;
+suktaSearch.onkeydown=e=>{if(e.key==="Enter")runSuktaSearch();}
+
+autoLoadCSV();
+</script>
+</body>
+</html>
