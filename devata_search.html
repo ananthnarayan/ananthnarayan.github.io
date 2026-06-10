@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devata Sukta Search - Rgveda</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Noto+Sans+Devanagari:wght@300;400;500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d0a07;
+    --surface:   #13100c;
+    --panel:     #1a1511;
+    --border:    #2e2519;
+    --border-hi: #5c4a2a;
+    --gold:      #c8993a;
+    --gold-lt:   #e2bb6a;
+    --gold-dim:  #6b4f1a;
+    --amber:     #d4782a;
+    --text:      #e8dcc8;
+    --text-dim:  #8a7a60;
+    --text-faint:#3a3020;
+    --m1:  #c8993a;
+    --m2:  #d4782a;
+    --m3:  #c45a3a;
+    --m4:  #a06030;
+    --m5:  #7a9e5a;
+    --m6:  #5a9e80;
+    --m7:  #5a80a8;
+    --m8:  #8a6ab8;
+    --m9:  #b86a8a;
+    --m10: #8a9e60;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 18px;
+    min-height: 100vh;
+  }
+
+  .top-band {
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
+  }
+
+  header {
+    text-align: center;
+    padding: 3rem 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-ornament {
+    color: var(--gold-dim);
+    font-size: 1rem;
+    letter-spacing: 0.4em;
+    font-family: 'EB Garamond', serif;
+    margin-bottom: 0.8rem;
+    opacity: 0.7;
+  }
+
+  h1 {
+    font-family: 'EB Garamond', serif;
+    font-size: 2.8rem;
+    font-weight: 400;
+    color: var(--gold-lt);
+    letter-spacing: 0.05em;
+    line-height: 1.15;
+  }
+
+  h1 .deva {
+    font-family: 'Noto Sans Devanagari', serif;
+    font-size: 1.4rem;
+    display: block;
+    color: var(--text-dim);
+    margin-top: 0.3rem;
+    font-weight: 300;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 1rem;
+    margin-top: 0.6rem;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    transition: padding-right 0.3s ease;
+  }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    margin-bottom: 1.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.55rem 1.3rem;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--gold-lt); border-bottom-color: var(--gold); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Search */
+  .search-wrap {
+    position: relative;
+    margin-bottom: 1.2rem;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gold-dim);
+    pointer-events: none;
+    font-style: normal;
+    font-size: 0.9rem;
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border-hi);
+    border-radius: 4px;
+    padding: 0.85rem 1rem 0.85rem 2.8rem;
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 1.15rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .search-input::placeholder { color: var(--text-faint); }
+  .search-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,153,58,0.12);
+  }
+
+  .reverse-row {
+    display: flex;
+    gap: 0.7rem;
+    margin-bottom: 1.2rem;
+    align-items: center;
+  }
+
+  .reverse-row .search-wrap { flex: 1; margin-bottom: 0; }
+  .reverse-sep { color: var(--text-faint); font-size: 1.1rem; flex-shrink: 0; }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1.4rem;
+  }
+
+  .controls label {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .controls input[type=checkbox] { accent-color: var(--gold); cursor: pointer; }
+  .sep { color: var(--border-hi); }
+
+  .sort-select {
+    margin-left: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.9rem;
+    padding: 0.3rem 0.6rem;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* Mandala filters */
+  .mandala-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-label {
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 0.2rem;
+  }
+
+  .mandala-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.2rem 0.7rem;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .mandala-btn:hover { border-color: var(--gold-dim); color: var(--text); }
+  .mandala-btn.active {
+    background: rgba(200,153,58,0.15);
+    border-color: var(--gold);
+    color: var(--gold-lt);
+  }
+
+  /* Status */
+  .status-bar {
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    margin-bottom: 1.1rem;
+    font-style: italic;
+    min-height: 1.4em;
+  }
+  .status-bar .hi { color: var(--gold); font-style: normal; }
+
+  /* Cards */
+  .results { display: flex; flex-direction: column; gap: 1px; }
+
+  .devata-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    animation: fadeIn 0.18s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    padding: 0.85rem 1.1rem;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: background 0.15s;
+    flex-wrap: wrap;
+  }
+
+  .card-header:hover { background: rgba(200,153,58,0.05); }
+  .devata-card.open .card-header {
+    border-bottom-color: var(--border);
+    background: rgba(200,153,58,0.06);
+  }
+
+  .name-english { font-size: 1.2rem; font-weight: 600; color: var(--gold-lt); }
+  .name-iast    { font-style: italic; color: var(--text-dim); font-size: 0.97rem; }
+  .name-deva    { font-family: 'Noto Sans Devanagari', serif; font-size: 0.97rem; color: var(--text-dim); font-weight: 300; }
+
+  .sukta-count {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.12rem 0.6rem;
+    white-space: nowrap;
+  }
+  .sukta-count .num { color: var(--gold-dim); font-weight: 600; }
+
+  .toggle-arrow { font-size: 0.65rem; color: var(--text-faint); transition: transform 0.2s; }
+  .devata-card.open .toggle-arrow { transform: rotate(180deg); }
+
+  .card-body { display: none; padding: 1rem 1.1rem 1.1rem; }
+  .devata-card.open .card-body { display: block; }
+
+  .description {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 0.95rem;
+    margin-bottom: 0.9rem;
+    border-left: 2px solid var(--gold-dim);
+    padding-left: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .sukta-section-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+    margin-bottom: 0.5rem;
+  }
+
+  .sukta-grid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+  /* Sukta chips */
+  .sukta-chip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    font-family: 'EB Garamond', serif;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .sukta-chip:hover { color: var(--text); }
+  .sukta-chip.active { background: rgba(200,153,58,0.12); color: var(--gold-lt); }
+
+  .m-num { font-size: 0.78rem; font-weight: 600; }
+  .sukta-chip.m1  .m-num { color: var(--m1);  } .sukta-chip.m1:hover  { border-color: var(--m1);  }
+  .sukta-chip.m2  .m-num { color: var(--m2);  } .sukta-chip.m2:hover  { border-color: var(--m2);  }
+  .sukta-chip.m3  .m-num { color: var(--m3);  } .sukta-chip.m3:hover  { border-color: var(--m3);  }
+  .sukta-chip.m4  .m-num { color: var(--m4);  } .sukta-chip.m4:hover  { border-color: var(--m4);  }
+  .sukta-chip.m5  .m-num { color: var(--m5);  } .sukta-chip.m5:hover  { border-color: var(--m5);  }
+  .sukta-chip.m6  .m-num { color: var(--m6);  } .sukta-chip.m6:hover  { border-color: var(--m6);  }
+  .sukta-chip.m7  .m-num { color: var(--m7);  } .sukta-chip.m7:hover  { border-color: var(--m7);  }
+  .sukta-chip.m8  .m-num { color: var(--m8);  } .sukta-chip.m8:hover  { border-color: var(--m8);  }
+  .sukta-chip.m9  .m-num { color: var(--m9);  } .sukta-chip.m9:hover  { border-color: var(--m9);  }
+  .sukta-chip.m10 .m-num { color: var(--m10); } .sukta-chip.m10:hover { border-color: var(--m10); }
+
+  /* Reverse search */
+  .reverse-result {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.1rem 1.2rem;
+    animation: fadeIn 0.18s ease both;
+  }
+
+  .reverse-sukta-heading {
+    font-family: 'EB Garamond', serif;
+    font-size: 1.3rem;
+    color: var(--gold-lt);
+    margin-bottom: 0.7rem;
+  }
+
+  .reverse-sukta-heading .m-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-left: 0.5rem;
+  }
+
+  .devata-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+  .devata-pill {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.22rem 0.65rem;
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    transition: border-color 0.15s, color 0.15s;
+    cursor: default;
+  }
+
+  .devata-pill:hover { border-color: var(--gold-dim); color: var(--text); }
+
+  /* Sukta viewer panel */
+  #suktaPanel {
+    display: none;
+    position: fixed;
+    top: 0; right: 0;
+    width: min(480px, 100vw);
+    height: 100vh;
+    background: var(--surface);
+    border-left: 1px solid var(--border-hi);
+    z-index: 100;
+    flex-direction: column;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.6);
+  }
+
+  #suktaPanel.open { display: flex; }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1.1rem 1.2rem 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .panel-title {
+    font-family: 'EB Garamond', serif;
+    font-size: 1.3rem;
+    color: var(--gold-lt);
+    flex: 1;
+  }
+
+  .panel-meta {
+    font-size: 0.82rem;
+    color: var(--text-faint);
+    font-style: italic;
+    width: 100%;
+  }
+
+  .panel-close {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font-size: 1rem;
+    padding: 0.1rem 0.55rem;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+
+  .panel-close:hover { border-color: var(--gold-dim); color: var(--text); }
+
+  .panel-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .panel-loading {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--gold-dim);
+    font-style: italic;
+    letter-spacing: 0.08em;
+  }
+
+  .panel-error {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-faint);
+    font-style: italic;
+  }
+
+  .mantra-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.9rem 1rem;
+    animation: fadeIn 0.15s ease both;
+  }
+
+  .mantra-ref {
+    font-family: 'EB Garamond', serif;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  .mantra-text {
+    font-family: 'Noto Sans Devanagari', serif;
+    font-size: 1.05rem;
+    line-height: 1.9;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  @media (min-width: 980px) {
+    body.panel-open .container { padding-right: calc(480px + 1.5rem); }
+  }
+
+  /* Empty / loader */
+  .empty-state, .loader {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-faint);
+    font-style: italic;
+    font-size: 1.05rem;
+  }
+
+  .loader { color: var(--gold-dim); letter-spacing: 0.08em; }
+
+  mark {
+    background: rgba(200,153,58,0.22);
+    color: var(--gold-lt);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--text-faint);
+    font-size: 0.82rem;
+    border-top: 1px solid var(--border);
+    letter-spacing: 0.04em;
+  }
+
+  .bottom-band {
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 2rem; }
+    .card-header { padding: 0.7rem 0.85rem; }
+    .card-body   { padding: 0.8rem 0.85rem; }
+    .reverse-row { flex-direction: column; }
+    .reverse-sep { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-band"></div>
+
+<header>
+  <div class="header-ornament">&#2384; &nbsp;&middot;&nbsp; &#7770;gveda &nbsp;&middot;&nbsp; &#2384;</div>
+  <h1>
+    Devata S&#363;kta Search
+    <span class="deva">&#2342;&#2375;&#2357;&#2340;&#2366; &#2360;&#2370;&#2325;&#2381;&#2340; &#2309;&#2344;&#2381;&#2357;&#2375;&#2359;&#2339;</span>
+  </h1>
+  <p class="subtitle">Browse s&#363;ktas by deity, or look up which devatas appear in a s&#363;kta</p>
+</header>
+
+<div class="container">
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="forward">Devata &rarr; S&#363;ktas</button>
+    <button class="tab-btn"       data-tab="reverse">S&#363;kta &rarr; Devatas</button>
+  </div>
+
+  <!-- FORWARD SEARCH -->
+  <div class="tab-panel active" id="panel-forward">
+    <div class="search-wrap">
+      <span class="search-icon">&#10033;</span>
+      <input type="text" id="searchInput" class="search-input"
+        placeholder="Search devata... e.g. Agni, Indra, Varuna..."
+        autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="controls">
+      <label><input type="checkbox" id="chkEnglish" checked> English</label>
+      <span class="sep">&middot;</span>
+      <label><input type="checkbox" id="chkIAST" checked> IAST</label>
+      <span class="sep">&middot;</span>
+      <label><input type="checkbox" id="chkDeva" checked> Devan&#257;gar&#299;</label>
+      <select class="sort-select" id="sortSelect">
+        <option value="alpha">Sort: A &rarr; Z</option>
+        <option value="count-desc">Sort: Most s&#363;ktas first</option>
+        <option value="count-asc">Sort: Fewest s&#363;ktas first</option>
+      </select>
+    </div>
+
+    <div class="mandala-filters" id="mandalaFilters">
+      <span class="filter-label">Mandala:</span>
+    </div>
+
+    <div class="status-bar" id="statusBar"></div>
+    <div class="results" id="results"><div class="loader">Loading data...</div></div>
+  </div>
+
+  <!-- REVERSE SEARCH -->
+  <div class="tab-panel" id="panel-reverse">
+    <div class="reverse-row">
+      <div class="search-wrap">
+        <span class="search-icon">M</span>
+        <input type="number" id="revMandala" class="search-input"
+          placeholder="Mandala (1-10)" min="1" max="10" autocomplete="off">
+      </div>
+      <span class="reverse-sep">&middot;</span>
+      <div class="search-wrap">
+        <span class="search-icon">S</span>
+        <input type="number" id="revSukta" class="search-input"
+          placeholder="Sukta number" min="1" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="status-bar" id="revStatusBar"></div>
+    <div class="results" id="revResults">
+      <div class="empty-state">Enter a mandala and sukta number above</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SUKTA VIEWER PANEL -->
+<div id="suktaPanel">
+  <div class="panel-header">
+    <span class="panel-title" id="panelTitle">Sukta</span>
+    <button class="panel-close" id="panelClose" title="Close">&times;</button>
+    <span class="panel-meta" id="panelMeta"></span>
+  </div>
+  <div class="panel-body" id="panelBody">
+    <div class="panel-loading">Loading...</div>
+  </div>
+</div>
+
+<footer>&#7770;gveda &middot; Devata S&#363;kta Index</footer>
+<div class="bottom-band"></div>
+
+<script>
+// CONFIG
+var CSV_URL    = 'data/devata_suktas.csv';
+var IDX_ENGLISH = 0;
+var IDX_DEVA    = 1;
+var IDX_DESC    = 2;
+var META_COUNT  = 3;
+
+// STATE
+var allDevatas    = [];
+var activeMandala = null;
+var fwdTimer      = null;
+var revTimer      = null;
+var fileCache     = {};
+var activeChip    = null;
+
+// CSV PARSER - returns array of string arrays
+function parseCSV(text) {
+  var rows = [];
+  var lines = text.split(/\r?\n/);
+  for (var li = 0; li < lines.length; li++) {
+    var line = lines[li];
+    if (!line.trim()) continue;
+    var cells = [];
+    var cur = '';
+    var inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (c === '"') {
+        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) {
+        cells.push(cur.trim());
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    cells.push(cur.trim());
+    rows.push(cells);
+  }
+  return rows;
+}
+
+// LOAD CSV
+function loadData() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', CSV_URL, true);
+  xhr.onload = function() {
+    if (xhr.status !== 200) {
+      document.getElementById('results').innerHTML =
+        '<div class="empty-state">Could not load ' + CSV_URL + ' (HTTP ' + xhr.status + ')</div>';
+      return;
+    }
+    processCSV(xhr.responseText);
+  };
+  xhr.onerror = function() {
+    document.getElementById('results').innerHTML =
+      '<div class="empty-state">Could not load ' + CSV_URL + '. Make sure the CSV is in the same folder.</div>';
+  };
+  xhr.send();
+}
+
+function processCSV(text) {
+  var rows = parseCSV(text);
+  if (rows.length < 2) return;
+
+  allDevatas = [];
+  for (var i = 1; i < rows.length; i++) {
+    var cells = rows[i];
+    if (!cells[IDX_ENGLISH]) continue;
+    var suktas = [];
+    for (var j = META_COUNT; j < cells.length; j++) {
+      if (/^\d+_\d+$/.test(cells[j])) suktas.push(cells[j]);
+    }
+    var mandalas = [];
+    for (var k = 0; k < suktas.length; k++) {
+      var m = suktas[k].split('_')[0];
+      if (mandalas.indexOf(m) === -1) mandalas.push(m);
+    }
+    allDevatas.push({
+      english: cells[IDX_ENGLISH] || '',
+      iast:    '',
+      deva:    cells[IDX_DEVA]  || '',
+      desc:    cells[IDX_DESC]  || '',
+      suktas:  suktas,
+      mandalas: mandalas
+    });
+  }
+
+  buildMandalaFilters();
+  renderForward('');
+}
+
+// TABS
+var tabBtns = document.querySelectorAll('.tab-btn');
+for (var ti = 0; ti < tabBtns.length; ti++) {
+  tabBtns[ti].addEventListener('click', function() {
+    var allBtns = document.querySelectorAll('.tab-btn');
+    var allPanels = document.querySelectorAll('.tab-panel');
+    for (var i = 0; i < allBtns.length; i++) allBtns[i].classList.remove('active');
+    for (var i = 0; i < allPanels.length; i++) allPanels[i].classList.remove('active');
+    this.classList.add('active');
+    document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+  });
+}
+
+// MANDALA FILTER BUTTONS
+function buildMandalaFilters() {
+  var all = [];
+  for (var i = 0; i < allDevatas.length; i++) {
+    for (var j = 0; j < allDevatas[i].mandalas.length; j++) {
+      var m = allDevatas[i].mandalas[j];
+      if (all.indexOf(m) === -1) all.push(m);
+    }
+  }
+  all.sort(function(a,b){ return +a - +b; });
+
+  var wrap = document.getElementById('mandalaFilters');
+  var allBtn = makeFilterBtn('All', true, null);
+  allBtn.addEventListener('click', function(){ setMandala(null, allBtn); });
+  wrap.appendChild(allBtn);
+
+  for (var i = 0; i < all.length; i++) {
+    (function(m) {
+      var btn = makeFilterBtn('Mandala ' + m, false, null);
+      btn.addEventListener('click', function(){ setMandala(m, btn); });
+      wrap.appendChild(btn);
+    })(all[i]);
+  }
+}
+
+function makeFilterBtn(label, active) {
+  var btn = document.createElement('button');
+  btn.className = 'mandala-btn' + (active ? ' active' : '');
+  btn.textContent = label;
+  return btn;
+}
+
+function setMandala(m, btn) {
+  activeMandala = m;
+  var btns = document.querySelectorAll('.mandala-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  triggerForward();
+}
+
+// FORWARD SEARCH
+function triggerForward() {
+  clearTimeout(fwdTimer);
+  fwdTimer = setTimeout(function() {
+    renderForward(document.getElementById('searchInput').value.trim());
+  }, 80);
+}
+
+function norm(s) {
+  return s.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[āa]/g,'a').replace(/[īi]/g,'i').replace(/[ūu]/g,'u')
+    .replace(/\u1e6d/g,'t').replace(/\u1e0d/g,'d').replace(/\u1e47/g,'n')
+    .replace(/[\u015b\u1e63]/g,'s').replace(/\u00f1/g,'n').replace(/\u1e43/g,'m')
+    .replace(/\u1e25/g,'h').replace(/\u1e5b/g,'r').replace(/\u1e37/g,'l');
+}
+
+function matchesQuery(d, query, useEng, useIAST, useDeva) {
+  if (!query) return true;
+  var q = norm(query);
+  if (useEng  && norm(d.english).indexOf(q) !== -1) return true;
+  if (useIAST && d.iast && norm(d.iast).indexOf(q) !== -1) return true;
+  if (useDeva && d.deva && d.deva.indexOf(query) !== -1) return true;
+  return false;
+}
+
+function renderForward(query) {
+  var useEng  = document.getElementById('chkEnglish').checked;
+  var useIAST = document.getElementById('chkIAST').checked;
+  var useDeva = document.getElementById('chkDeva').checked;
+  var sort    = document.getElementById('sortSelect').value;
+
+  var list = [];
+  for (var i = 0; i < allDevatas.length; i++) {
+    var d = allDevatas[i];
+    if (!matchesQuery(d, query, useEng, useIAST, useDeva)) continue;
+    if (activeMandala) {
+      var found = false;
+      for (var j = 0; j < d.suktas.length; j++) {
+        if (d.suktas[j].indexOf(activeMandala + '_') === 0) { found = true; break; }
+      }
+      if (!found) continue;
+    }
+    list.push(d);
+  }
+
+  if (sort === 'alpha') {
+    list.sort(function(a,b){ return a.english.localeCompare(b.english); });
+  } else if (sort === 'count-desc') {
+    list.sort(function(a,b){ return b.suktas.length - a.suktas.length; });
+  } else {
+    list.sort(function(a,b){ return a.suktas.length - b.suktas.length; });
+  }
+
+  var status = document.getElementById('statusBar');
+  if (!allDevatas.length) {
+    status.textContent = '';
+  } else if (query || activeMandala) {
+    status.innerHTML = 'Showing <span class="hi">' + list.length + '</span> of ' + allDevatas.length + ' devatas';
+  } else {
+    status.innerHTML = '<span class="hi">' + allDevatas.length + '</span> devatas indexed';
+  }
+
+  var results = document.getElementById('results');
+  if (!list.length) {
+    results.innerHTML = '<div class="empty-state">No devatas found matching "' + esc(query) + '"</div>';
+    return;
+  }
+  results.innerHTML = '';
+  for (var i = 0; i < list.length; i++) {
+    results.appendChild(buildCard(list[i], query, i));
+  }
+}
+
+function buildCard(d, query, idx) {
+  var suktas = activeMandala
+    ? d.suktas.filter(function(s){ return s.indexOf(activeMandala + '_') === 0; })
+    : d.suktas;
+
+  var card = document.createElement('div');
+  card.className = 'devata-card';
+  card.style.animationDelay = Math.min(idx * 0.02, 0.25) + 's';
+
+  var nameEn = hlStr(esc(d.english), query);
+  var nameIA = d.iast ? hlStr(esc(d.iast), query) : '';
+  var nameDV = d.deva ? hlStr(esc(d.deva), query) : '';
+
+  var chips = '';
+  for (var i = 0; i < suktas.length; i++) {
+    var parts = suktas[i].split('_');
+    var m = parts[0], n = parts[1];
+    chips += '<span class="sukta-chip m' + m + '" data-sukta="' + suktas[i] + '" title="Click to view Mandala ' + m + ', Sukta ' + n + '"><span class="m-num">' + m + '&middot;</span>' + n + '</span>';
+  }
+
+  var headerHTML = '<span class="name-english">' + nameEn + '</span>';
+  if (nameIA) headerHTML += '<span class="name-iast">' + nameIA + '</span>';
+  if (nameDV) headerHTML += '<span class="name-deva">' + nameDV + '</span>';
+  headerHTML += '<span class="sukta-count"><span class="num">' + suktas.length + '</span> sukta' + (suktas.length !== 1 ? 's' : '') + '</span>';
+  headerHTML += '<span class="toggle-arrow">&#9660;</span>';
+
+  var bodyHTML = '';
+  if (d.desc) bodyHTML += '<div class="description">' + esc(d.desc) + '</div>';
+  bodyHTML += '<div class="sukta-section-label">Suktas (Mandala &middot; Number)</div>';
+  bodyHTML += '<div class="sukta-grid">' + chips + '</div>';
+
+  card.innerHTML = '<div class="card-header">' + headerHTML + '</div><div class="card-body">' + bodyHTML + '</div>';
+  card.querySelector('.card-header').addEventListener('click', function() {
+    card.classList.toggle('open');
+  });
+  return card;
+}
+
+// REVERSE SEARCH
+function triggerReverse() {
+  clearTimeout(revTimer);
+  revTimer = setTimeout(renderReverse, 80);
+}
+
+function renderReverse() {
+  var mRaw = document.getElementById('revMandala').value.trim();
+  var sRaw = document.getElementById('revSukta').value.trim();
+  var status  = document.getElementById('revStatusBar');
+  var results = document.getElementById('revResults');
+
+  if (!mRaw && !sRaw) {
+    status.textContent = '';
+    results.innerHTML = '<div class="empty-state">Enter a mandala and sukta number above</div>';
+    return;
+  }
+  if (!mRaw || !sRaw) {
+    status.textContent = '';
+    results.innerHTML = '<div class="empty-state">Please enter both a mandala and a sukta number</div>';
+    return;
+  }
+
+  var key = mRaw + '_' + sRaw;
+  var hits = [];
+  for (var i = 0; i < allDevatas.length; i++) {
+    if (allDevatas[i].suktas.indexOf(key) !== -1) hits.push(allDevatas[i]);
+  }
+
+  if (!hits.length) {
+    status.innerHTML = 'No devatas found for Mandala <span class="hi">' + esc(mRaw) + '</span>, Sukta <span class="hi">' + esc(sRaw) + '</span>';
+    results.innerHTML = '<div class="empty-state">No results</div>';
+    return;
+  }
+
+  status.innerHTML = '<span class="hi">' + hits.length + '</span> devata' + (hits.length !== 1 ? 's' : '') + ' in Mandala <span class="hi">' + esc(mRaw) + '</span>, Sukta <span class="hi">' + esc(sRaw) + '</span>';
+
+  var pills = '';
+  for (var i = 0; i < hits.length; i++) {
+    var d = hits[i];
+    var label = esc(d.english);
+    if (d.iast) label += ' <span style="font-style:italic;color:var(--text-faint);font-size:0.88em">&middot; ' + esc(d.iast) + '</span>';
+    if (d.deva) label += ' <span style="font-family:\'Noto Sans Devanagari\',serif;color:var(--text-faint);font-size:0.88em">&middot; ' + esc(d.deva) + '</span>';
+    pills += '<span class="devata-pill">' + label + '</span>';
+  }
+
+  results.innerHTML = '<div class="reverse-result"><div class="reverse-sukta-heading">Mandala ' + esc(mRaw) + ', Sukta ' + esc(sRaw) + '<span class="m-label">&mdash; presiding devatas</span></div><div class="devata-pills">' + pills + '</div></div>';
+}
+
+// SUKTA VIEWER
+function mandalaFilename(m) {
+  return 'texts/RV_Mandala_' + String(m).padStart(2, '0') + '.txt';
+}
+
+function fetchMandala(m, callback) {
+  if (fileCache[m]) { callback(null, fileCache[m]); return; }
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', mandalaFilename(m), true);
+  xhr.overrideMimeType('text/plain; charset=utf-8');
+  xhr.onload = function() {
+    if (xhr.status !== 200) {
+      callback(new Error('Could not load ' + mandalaFilename(m)));
+      return;
+    }
+    fileCache[m] = xhr.responseText;
+    callback(null, xhr.responseText);
+  };
+  xhr.onerror = function() { callback(new Error('Network error loading ' + mandalaFilename(m))); };
+  xhr.send();
+}
+
+function extractSukta(text, mandala, sukta) {
+  var mStr   = String(mandala);
+  var sStr   = String(sukta).padStart(3, '0');
+  var prefix = mStr + '.' + sStr + '.';
+  var refRe  = /(\d+\.\d+\.\d+)\s*$/;
+
+  var lines   = text.split(/\r?\n/);
+  var mantras = [];
+  var currentLines = [];
+  var inSukta = false;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line  = lines[i];
+    var match = line.match(refRe);
+    if (match) {
+      var ref = match[1];
+      if (ref.indexOf(prefix) === 0) {
+        currentLines.push(line.replace(ref, '').replace(/\s+$/, ''));
+        mantras.push({ ref: ref, text: currentLines.join('\n').trim() });
+        currentLines = [];
+        inSukta = true;
+      } else {
+        if (inSukta) break;
+        currentLines = [];
+      }
+    } else {
+      currentLines.push(line);
+    }
+  }
+  return mantras;
+}
+
+function openSukta(chip, mandala, sukta) {
+  if (activeChip) activeChip.classList.remove('active');
+  chip.classList.add('active');
+  activeChip = chip;
+
+  var panel = document.getElementById('suktaPanel');
+  var title = document.getElementById('panelTitle');
+  var meta  = document.getElementById('panelMeta');
+  var body  = document.getElementById('panelBody');
+
+  title.textContent = 'Mandala ' + mandala + ', Sukta ' + sukta;
+  meta.textContent  = '';
+  body.innerHTML    = '<div class="panel-loading">Loading...</div>';
+  body.scrollTop    = 0;
+  panel.classList.add('open');
+  document.body.classList.add('panel-open');
+
+  fetchMandala(mandala, function(err, text) {
+    if (err) {
+      body.innerHTML = '<div class="panel-error">' + esc(err.message) + '</div>';
+      return;
+    }
+    var mantras = extractSukta(text, mandala, sukta);
+    if (!mantras.length) {
+      body.innerHTML = '<div class="panel-error">No mantras found for ' + mandala + '.' + String(sukta).padStart(3,'0') + '</div>';
+      return;
+    }
+    meta.textContent = mantras.length + ' mantra' + (mantras.length !== 1 ? 's' : '');
+    body.innerHTML = '';
+    for (var i = 0; i < mantras.length; i++) {
+      var block = document.createElement('div');
+      block.className = 'mantra-block';
+      block.style.animationDelay = (i * 0.04) + 's';
+      block.innerHTML = '<div class="mantra-ref">' + esc(mantras[i].ref) + '</div>' +
+                        '<div class="mantra-text">' + esc(mantras[i].text) + '</div>';
+      body.appendChild(block);
+    }
+  });
+}
+
+function closePanel() {
+  document.getElementById('suktaPanel').classList.remove('open');
+  document.body.classList.remove('panel-open');
+  if (activeChip) { activeChip.classList.remove('active'); activeChip = null; }
+}
+
+document.getElementById('panelClose').addEventListener('click', closePanel);
+
+document.getElementById('results').addEventListener('click', function(e) {
+  var chip = e.target.closest ? e.target.closest('.sukta-chip') : null;
+  if (!chip || !chip.dataset.sukta) return;
+  var parts = chip.dataset.sukta.split('_');
+  openSukta(chip, parts[0], parts[1]);
+});
+
+document.getElementById('revResults').addEventListener('click', function(e) {
+  var chip = e.target.closest ? e.target.closest('.sukta-chip') : null;
+  if (!chip || !chip.dataset.sukta) return;
+  var parts = chip.dataset.sukta.split('_');
+  openSukta(chip, parts[0], parts[1]);
+});
+
+// HELPERS
+function hlStr(html, query) {
+  if (!query) return html;
+  var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return html.replace(re, '<mark>$1</mark>');
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// EVENTS
+document.getElementById('searchInput').addEventListener('input', triggerForward);
+document.getElementById('chkEnglish').addEventListener('change', triggerForward);
+document.getElementById('chkIAST').addEventListener('change', triggerForward);
+document.getElementById('chkDeva').addEventListener('change', triggerForward);
+document.getElementById('sortSelect').addEventListener('change', triggerForward);
+document.getElementById('revMandala').addEventListener('input', triggerReverse);
+document.getElementById('revSukta').addEventListener('input', triggerReverse);
+
+// BOOT
+loadData();
+</script>
+</body>
+</html>
