@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sutras - Rgveda</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Noto+Sans+Devanagari:wght@300;400;500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d0a07;
+    --surface:   #13100c;
+    --panel:     #1a1511;
+    --border:    #2e2519;
+    --border-hi: #5c4a2a;
+    --gold:      #c8993a;
+    --gold-lt:   #e2bb6a;
+    --gold-dim:  #6b4f1a;
+    --amber:     #d4782a;
+    --text:      #e8dcc8;
+    --text-dim:  #8a7a60;
+    --text-faint:#3a3020;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 18px;
+    min-height: 100vh;
+  }
+
+  .top-band {
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
+  }
+
+  header {
+    text-align: center;
+    padding: 3rem 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-ornament {
+    color: var(--gold-dim);
+    font-size: 1rem;
+    letter-spacing: 0.4em;
+    font-family: 'EB Garamond', serif;
+    margin-bottom: 0.8rem;
+    opacity: 0.7;
+  }
+
+  h1 {
+    font-family: 'EB Garamond', serif;
+    font-size: 2.8rem;
+    font-weight: 400;
+    color: var(--gold-lt);
+    letter-spacing: 0.05em;
+    line-height: 1.15;
+  }
+
+  h1 .deva {
+    font-family: 'Noto Sans Devanagari', serif;
+    font-size: 1.4rem;
+    display: block;
+    color: var(--text-dim);
+    margin-top: 0.3rem;
+    font-weight: 300;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 1rem;
+    margin-top: 0.6rem;
+  }
+
+  .nav-link {
+    display: inline-block;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-faint);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .nav-link:hover { color: var(--gold-dim); border-color: var(--gold-dim); }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    margin-bottom: 1.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.55rem 1.3rem;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--gold-lt); border-bottom-color: var(--gold); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Status */
+  .status-bar {
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+    font-style: italic;
+    min-height: 1.4em;
+  }
+
+  .status-bar .hi { color: var(--gold); font-style: normal; }
+
+  /* Table */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.97rem;
+  }
+
+  thead tr {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-hi);
+  }
+
+  th {
+    padding: 0.7rem 1rem;
+    text-align: left;
+    font-family: 'EB Garamond', serif;
+    font-weight: 400;
+    color: var(--gold-lt);
+    font-size: 0.95rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  th:hover { color: var(--gold); }
+
+  th .sort-icon {
+    display: inline-block;
+    margin-left: 0.35rem;
+    font-size: 0.65rem;
+    color: var(--text-faint);
+    vertical-align: middle;
+    transition: color 0.15s;
+  }
+
+  th.sorted-asc .sort-icon,
+  th.sorted-desc .sort-icon { color: var(--gold); }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(200,153,58,0.04); }
+
+  td {
+    padding: 0.75rem 1rem;
+    vertical-align: top;
+    color: var(--text-dim);
+  }
+
+  td.num {
+    color: var(--gold-dim);
+    font-family: 'EB Garamond', serif;
+    font-size: 1rem;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  td.deva {
+    font-family: 'Noto Sans Devanagari', serif;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  td.notes {
+    font-style: italic;
+    font-size: 0.88rem;
+    color: var(--text-faint);
+  }
+
+  /* Empty / loader */
+  .empty-state, .loader {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-faint);
+    font-style: italic;
+    font-size: 1.05rem;
+  }
+
+  .loader { color: var(--gold-dim); letter-spacing: 0.08em; }
+
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--text-faint);
+    font-size: 0.82rem;
+    border-top: 1px solid var(--border);
+    letter-spacing: 0.04em;
+  }
+
+  .bottom-band {
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 2rem; }
+    th, td { padding: 0.55rem 0.65rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-band"></div>
+
+<header>
+  <div class="header-ornament">&#2384; &nbsp;&middot;&nbsp; &#7770;gveda &nbsp;&middot;&nbsp; &#2384;</div>
+  <h1>
+    S&#363;tras
+    <span class="deva">&#2360;&#2370;&#2340;&#2381;&#2352;</span>
+  </h1>
+  <p class="subtitle">Mnemonics for sequences in the &#7770;gveda</p>
+  <a href="index.html" class="nav-link">&larr; Back to Rigveda Explorer</a>
+</header>
+
+<div class="container">
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="varga">Varga</button>
+    <button class="tab-btn" data-tab="pavamana">Pavamana</button>
+    <button class="tab-btn" data-tab="dhruva">Dhruva Pada</button>
+  </div>
+
+  <!-- VARGA TAB -->
+  <div class="tab-panel active" id="panel-varga">
+    <div class="status-bar" id="status-varga"></div>
+    <div id="table-varga"><div class="loader">Loading...</div></div>
+  </div>
+
+  <!-- PAVAMANA TAB -->
+  <div class="tab-panel" id="panel-pavamana">
+    <div class="status-bar" id="status-pavamana"></div>
+    <div id="table-pavamana"><div class="loader">Loading...</div></div>
+  </div>
+
+  <!-- DHRUVA PADA TAB -->
+  <div class="tab-panel" id="panel-dhruva">
+    <div class="status-bar" id="status-dhruva"></div>
+    <div id="table-dhruva"><div class="loader">Loading...</div></div>
+  </div>
+
+</div>
+
+<footer>&#7770;gveda &middot; S&#363;tras</footer>
+<div class="bottom-band"></div>
+
+<script>
+// CONFIG
+var CSV_VARGA    = 'data/sutra_varga.csv';
+var CSV_PAVAMANA = 'data/sutra_pavamana.csv';
+var CSV_DHRUVA   = 'data/sutra_dhruva.csv';
+
+// Sort state per table: { col: colIndex, dir: 'asc'|'desc' }
+var sortState = { varga: null, pavamana: null, dhruva: null };
+
+// Loaded data per table
+var tableData = { varga: [], pavamana: [], dhruva: [] };
+
+// Column definitions per table
+// type: 'num' = numeric sort, 'str' = string sort, 'deva' = Devanagari (string sort), 'notes' = italic string
+var COLS_VARGA = [
+  { key: 'Ashtaka',      label: 'Ashtaka',       type: 'num'  },
+  { key: 'Adhyaya',      label: 'Adhyaya',        type: 'num'  },
+  { key: 'VargaCount',   label: 'Varga Count',    type: 'num'  },
+  { key: 'ForwardSutra', label: 'Forward Sutra',  type: 'deva' },
+  { key: 'BackwardSutra',label: 'Backward Sutra', type: 'deva' }
+];
+
+var COLS_PAVAMANA = [
+  { key: 'Adhyaya', label: 'Adhyaya', type: 'num'  },
+  { key: 'Sutra',   label: 'Sutra',   type: 'deva' }
+];
+
+var COLS_DHRUVA = [
+  { key: 'Mandala', label: 'Mandala', type: 'num'   },
+  { key: 'Sukta',   label: 'Sukta',   type: 'num'   },
+  { key: 'Sutra1',  label: 'Sutra 1', type: 'deva'  },
+  { key: 'Sutra2',  label: 'Sutra 2', type: 'deva'  },
+  { key: 'Sutra3',  label: 'Sutra 3', type: 'deva'  },
+  { key: 'Notes',   label: 'Notes',   type: 'notes' }
+];
+
+// CSV PARSER
+function parseCSV(text) {
+  var rows = [];
+  var lines = text.split(/\r?\n/);
+  if (lines.length < 2) return { headers: [], rows: [] };
+  var headers = splitRow(lines[0]);
+  for (var i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    var cells = splitRow(lines[i]);
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j].trim()] = (cells[j] || '').trim();
+    }
+    rows.push(obj);
+  }
+  return { headers: headers, rows: rows };
+}
+
+function splitRow(line) {
+  var cells = [], cur = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      cells.push(cur.trim()); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+
+// XHR LOADER
+function loadCSV(url, callback) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.onload = function() {
+    if (xhr.status !== 200) { callback(new Error('HTTP ' + xhr.status), null); return; }
+    callback(null, xhr.responseText);
+  };
+  xhr.onerror = function() { callback(new Error('Network error'), null); };
+  xhr.send();
+}
+
+// SORT
+function sortRows(rows, col, dir, type) {
+  var sorted = rows.slice();
+  sorted.sort(function(a, b) {
+    var av = a[col] || '', bv = b[col] || '';
+    var cmp;
+    if (type === 'num') {
+      cmp = (+av || 0) - (+bv || 0);
+    } else {
+      cmp = av.localeCompare(bv);
+    }
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+// RENDER TABLE
+function renderTable(tabKey, cols, rows) {
+  var state  = sortState[tabKey];
+  var data   = state ? sortRows(rows, state.col, state.dir, getCellType(cols, state.col)) : rows;
+  var status = document.getElementById('status-' + tabKey);
+  var wrap   = document.getElementById('table-' + tabKey);
+
+  status.innerHTML = '<span class="hi">' + data.length + '</span> entr' + (data.length === 1 ? 'y' : 'ies');
+
+  if (!data.length) {
+    wrap.innerHTML = '<div class="empty-state">No data found.</div>';
+    return;
+  }
+
+  var html = '<div class="table-wrap"><table><thead><tr>';
+  for (var c = 0; c < cols.length; c++) {
+    var col = cols[c];
+    var cls = '';
+    if (state && state.col === col.key) {
+      cls = state.dir === 'asc' ? 'sorted-asc' : 'sorted-desc';
+    }
+    var icon = state && state.col === col.key
+      ? (state.dir === 'asc' ? '&#9650;' : '&#9660;')
+      : '&#8597;';
+    html += '<th class="' + cls + '" data-tab="' + tabKey + '" data-col="' + col.key + '" data-type="' + col.type + '">';
+    html += esc(col.label) + '<span class="sort-icon">' + icon + '</span></th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  for (var r = 0; r < data.length; r++) {
+    var row = data[r];
+    html += '<tr>';
+    for (var c = 0; c < cols.length; c++) {
+      var col = cols[c];
+      var val = row[col.key] || '';
+      var tdCls = col.type === 'num' ? 'num' : col.type === 'deva' ? 'deva' : col.type === 'notes' ? 'notes' : '';
+      html += '<td class="' + tdCls + '">' + esc(val) + '</td>';
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+
+  // Attach sort click handlers to headers
+  var ths = wrap.querySelectorAll('th');
+  for (var i = 0; i < ths.length; i++) {
+    ths[i].addEventListener('click', onHeaderClick);
+  }
+}
+
+function getCellType(cols, colKey) {
+  for (var i = 0; i < cols.length; i++) {
+    if (cols[i].key === colKey) return cols[i].type;
+  }
+  return 'str';
+}
+
+function onHeaderClick() {
+  var tabKey = this.dataset.tab;
+  var col    = this.dataset.col;
+  var type   = this.dataset.type;
+  var state  = sortState[tabKey];
+
+  if (state && state.col === col) {
+    // Toggle direction
+    sortState[tabKey] = { col: col, dir: state.dir === 'asc' ? 'desc' : 'asc' };
+  } else {
+    sortState[tabKey] = { col: col, dir: 'asc' };
+  }
+
+  var cols = tabKey === 'varga' ? COLS_VARGA : tabKey === 'pavamana' ? COLS_PAVAMANA : COLS_DHRUVA;
+  renderTable(tabKey, cols, tableData[tabKey]);
+}
+
+// TABS
+var tabBtns = document.querySelectorAll('.tab-btn');
+for (var ti = 0; ti < tabBtns.length; ti++) {
+  tabBtns[ti].addEventListener('click', function() {
+    var allBtns   = document.querySelectorAll('.tab-btn');
+    var allPanels = document.querySelectorAll('.tab-panel');
+    for (var i = 0; i < allBtns.length; i++)   allBtns[i].classList.remove('active');
+    for (var i = 0; i < allPanels.length; i++) allPanels[i].classList.remove('active');
+    this.classList.add('active');
+    document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+  });
+}
+
+// HELPERS
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// LOAD ALL
+function loadAll() {
+  loadCSV(CSV_VARGA, function(err, text) {
+    var wrap = document.getElementById('table-varga');
+    if (err) { wrap.innerHTML = '<div class="empty-state">Could not load ' + CSV_VARGA + '</div>'; return; }
+    var parsed = parseCSV(text);
+    tableData.varga = parsed.rows;
+    sortState.varga = { col: 'Ashtaka', dir: 'asc' };
+    renderTable('varga', COLS_VARGA, tableData.varga);
+  });
+
+  loadCSV(CSV_PAVAMANA, function(err, text) {
+    var wrap = document.getElementById('table-pavamana');
+    if (err) { wrap.innerHTML = '<div class="empty-state">Could not load ' + CSV_PAVAMANA + '</div>'; return; }
+    var parsed = parseCSV(text);
+    tableData.pavamana = parsed.rows;
+    sortState.pavamana = { col: 'Adhyaya', dir: 'asc' };
+    renderTable('pavamana', COLS_PAVAMANA, tableData.pavamana);
+  });
+
+  loadCSV(CSV_DHRUVA, function(err, text) {
+    var wrap = document.getElementById('table-dhruva');
+    if (err) { wrap.innerHTML = '<div class="empty-state">Could not load ' + CSV_DHRUVA + '</div>'; return; }
+    var parsed = parseCSV(text);
+    tableData.dhruva = parsed.rows;
+    sortState.dhruva = { col: 'Mandala', dir: 'asc' };
+    renderTable('dhruva', COLS_DHRUVA, tableData.dhruva);
+  });
+}
+
+loadAll();
+</script>
+</body>
+</html>
